@@ -1,0 +1,62 @@
+{
+    "schema_version": "1.0",
+    "name": "fused_softmax",
+    "family": "activation",
+    "description": "Fused softmax over the last dimension: aligned with Triton official softmax tutorial",
+    "tags": [
+        "softmax",
+        "fused",
+        "activation",
+        "triton-tutorial"
+    ],
+    "entrypoints": {
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "make_inputs": "reference.py:make_inputs",
+        "estimate": "reference.py:estimate"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 4,
+            "S": 512,
+            "H": 64
+        },
+        {
+            "name": "medium",
+            "B": 8,
+            "S": 1024,
+            "H": 128
+        },
+        {
+            "name": "large",
+            "B": 16,
+            "S": 2048,
+            "H": 256
+        }
+    ],
+    "correctness": {
+        "atol": 0.01,
+        "rtol": 0.01,
+        "per_dtype": {
+            "fp32": {
+                "atol": 0.0001,
+                "rtol": 0.0001
+            }
+        }
+    },
+    "metrics": "softmax"
+}

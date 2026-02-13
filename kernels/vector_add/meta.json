@@ -1,0 +1,55 @@
+{
+    "schema_version": "1.0",
+    "name": "vector_add",
+    "family": "elementwise",
+    "description": "Element-wise vector addition: z = x + y",
+    "tags": [
+        "elementwise",
+        "intro",
+        "template"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "estimate": "reference.py:estimate"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "n1m",
+            "N": 1048576
+        },
+        {
+            "name": "n4m",
+            "N": 4194304
+        },
+        {
+            "name": "n16m",
+            "N": 16777216
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-5,
+                "rtol": 1e-4
+            }
+        }
+    },
+    "metrics": "elementwise"
+}

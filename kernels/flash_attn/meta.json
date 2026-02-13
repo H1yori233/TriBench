@@ -1,0 +1,48 @@
+{
+    "schema_version": "1.0",
+    "name": "flash_attn",
+    "family": "attention",
+    "description": "FlashAttention Forward pass",
+    "tags": [
+        "attention",
+        "flash"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run_flash_attn",
+        "estimate": "reference.py:estimate"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "s4k_d64",
+            "batch_size": 8,
+            "num_heads": 16,
+            "seq_len": 4096,
+            "head_dim": 64
+        },
+        {
+            "name": "s8k_d64",
+            "batch_size": 4,
+            "num_heads": 16,
+            "seq_len": 8192,
+            "head_dim": 64
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2
+    }
+}
