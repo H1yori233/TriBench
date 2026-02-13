@@ -1,7 +1,7 @@
 [project]
-name = "gpubench"
+name = "tribench"
 version = "0.1.0"
-description = "GPU Kernel Benchmark Suite: reproducible, extensible benchmarking for Triton kernels"
+description = "Reproducible and extensible benchmark for Triton kernels"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -17,11 +17,11 @@ dev = [
 ]
 
 [project.scripts]
-gpubench = "gpubench.cli:main"
+tribench = "tribench.cli:main"
 
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gpubench*"]
+include = ["tribench*"]

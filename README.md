@@ -1,6 +1,9 @@
-# gpubench
+<div align="center">
+  <img src="assets/logo.png" width="60" alt="TriBench Logo" style="vertical-align: middle; margin-right: 15px;" />
+  <h1 style="display: inline-block; vertical-align: middle; margin: 0;">TriBench</h1>
+  <p><strong>Reproducible and extensible benchmark suite for Triton kernels.</strong></p>
+</div>
 
-Reproducible and extensible benchmark suite for GPU (Triton) kernels.
 
 ## Overview
 
