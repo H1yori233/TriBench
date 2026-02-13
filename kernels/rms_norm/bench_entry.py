@@ -3,7 +3,8 @@ import sys
 
 def main():
     from tribench.cli import main as tribench_main
-    sys.argv = ["tribench", "run", "--kernel", "fused_softmax"] + sys.argv[1:]
+    import sys
+    sys.argv = ["tribench", "run", "--kernel", "rms_norm"] + sys.argv[1:]
     tribench_main()
 
 

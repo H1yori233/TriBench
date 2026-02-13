@@ -8,7 +8,7 @@
 ## Overview
 
 ```text
-gpubench/          - core framework
+tribench/          - core framework
 kernels/           - kernel implementations
 scripts/           - helper scripts
 results/           - measurement results
@@ -28,25 +28,25 @@ pip install -e ".[dev]"
 ### List kernels
 
 ```bash
-gpubench list
+tribench list
 ```
 
 ### Validate metadata
 
 ```bash
-gpubench validate-meta
+tribench validate-meta
 ```
 
 ### Run correctness tests
 
 ```bash
-gpubench test --kernel all
+tribench test --kernel all
 ```
 
 ### Run benchmarks
 
 ```bash
-gpubench run --kernel all --dtype fp16 --warmup-ms 200 --rep-ms 2000
+tribench run --kernel all --dtype fp16 --warmup-ms 200 --rep-ms 2000
 ```
 
 ## Methodology
@@ -61,6 +61,6 @@ gpubench run --kernel all --dtype fp16 --warmup-ms 200 --rep-ms 2000
 1. Create a directory in `kernels/`.
 2. Add `meta.json` to define entrypoints and test cases.
 3. Implement reference (PyTorch) and Triton kernels.
-4. Verify with `gpubench test`.
+4. Verify with `tribench test`.
 
 No framework modifications are required to add new kernels.

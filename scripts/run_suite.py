@@ -5,7 +5,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gpubench.cli import main as gpubench_main
+from tribench.cli import main as tribench_main
 
 
 def run():
@@ -21,14 +21,14 @@ def run():
     parser.add_argument("--output-dir", default="results")
     args = parser.parse_args()
 
-    # Build gpubench CLI args
+    # Build tribench CLI args
     cli_args = ["run", "--kernel", args.kernel, "--device", args.device,
                 "--seed", str(args.seed), "--warmup-ms", str(args.warmup_ms),
                 "--rep-ms", str(args.rep_ms), "--output-dir", args.output_dir]
     if args.dtype:
         cli_args.extend(["--dtype", args.dtype])
 
-    gpubench_main(cli_args)
+    tribench_main(cli_args)
 
 
 if __name__ == "__main__":

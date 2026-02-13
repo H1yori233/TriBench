@@ -2,7 +2,7 @@ import json
 import pytest
 import sys
 from pathlib import Path
-from gpubench.meta import validate_meta, load_meta, validate_entrypoints
+from tribench.meta import validate_meta, load_meta, validate_entrypoints
 
 
 # ---------------------------------------------------------------------------

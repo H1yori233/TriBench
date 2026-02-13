@@ -69,7 +69,7 @@ class KernelRegistry:
 
         file_part, symbol = ep_spec.rsplit(":", 1)
         file_path = Path(meta.kernel_dir) / file_part
-        module = self._import_file(file_path, f"gpubench.kernels.{name}.{file_path.stem}")
+        module = self._import_file(file_path, f"tribench.kernels.{name}.{file_path.stem}")
         func = getattr(module, symbol)
         self._modules[cache_key] = func
         return func
