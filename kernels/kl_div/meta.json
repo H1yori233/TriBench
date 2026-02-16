@@ -1,0 +1,48 @@
+{
+    "schema_version": "1.0",
+    "name": "kl_div",
+    "family": "loss",
+    "description": "Kullback-Leibler Divergence Loss",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/kl_div.py",
+    "tags": [
+        "loss",
+        "liger-kernel"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "llama3_8b_v32k",
+            "B": 1,
+            "T": 4096,
+            "V": 32000
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-5,
+                "rtol": 1e-4
+            }
+        }
+    },
+    "metrics": "elementwise"
+}

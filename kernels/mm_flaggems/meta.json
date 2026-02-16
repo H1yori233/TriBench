@@ -1,0 +1,48 @@
+{
+    "schema_version": "1.0",
+    "name": "mm_flaggems",
+    "family": "blas",
+    "description": "Matrix Multiplication",
+    "source": "https://github.com/flagos-ai/FlagGems/blob/master/src/flag_gems/ops/mm.py",
+    "tags": [
+        "blas",
+        "flaggems"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "large_matmul",
+            "M": 2048,
+            "N": 2048,
+            "K": 2048
+        }
+    ],
+    "correctness": {
+        "atol": 2e-1,
+        "rtol": 1e-1,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-3,
+                "rtol": 1e-3
+            }
+        }
+    },
+    "metrics": "blas"
+}
