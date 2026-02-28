@@ -10,7 +10,8 @@
     "entrypoints": {
         "make_inputs": "reference.py:make_inputs",
         "reference": "reference.py:ref",
-        "triton": "triton_impl.py:run"
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
     },
     "supported": {
         "dtypes": [

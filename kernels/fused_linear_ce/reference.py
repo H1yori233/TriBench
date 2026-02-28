@@ -16,10 +16,20 @@ def make_inputs(params: dict, device: str, seed: int, dtype: torch.dtype):
     # Randomly set some targets to ignore_index
     mask = torch.rand((B * T,), device=device) < 0.1
     target[mask] = ignore_index
+    grad_output = torch.randn((), dtype=torch.float32, device=device)
+    
+    return {"X": input, "W": weight, "target": target, "ignore_index": ignore_index, "grad_output": grad_output}
 
-    return {"X": input, "W": weight, "target": target, "ignore_index": ignore_index}
 
-
-def ref(X: torch.Tensor, W: torch.Tensor, target: torch.Tensor, ignore_index: int):
+def ref(X: torch.Tensor, W: torch.Tensor, target: torch.Tensor, ignore_index: int, grad_output: torch.Tensor):
     logits = X @ W.t()
     return F.cross_entropy(logits, target, ignore_index=ignore_index, reduction="mean")
+
+def ref_backward(X: torch.Tensor, W: torch.Tensor, target: torch.Tensor, ignore_index: int, grad_output: torch.Tensor):
+    X.grad = None
+    W.grad = None
+    logits = X @ W.t()
+    loss = F.cross_entropy(logits, target, ignore_index=ignore_index, reduction="mean")
+    loss.backward(grad_output)
+    return X.grad, W.grad
+

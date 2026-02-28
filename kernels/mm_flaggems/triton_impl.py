@@ -47,7 +47,7 @@ def mm_kernel(
     tl.store(C_ptr, acc.to(C.dtype.element_ty), mask=mask)
 
 
-def run(a, b):
+def run(a, b, grad_output=None):
     M, K = a.shape
     _, N = b.shape
     c = torch.empty((M, N), dtype=a.dtype, device=a.device)
@@ -68,3 +68,14 @@ def run(a, b):
         num_warps=4, num_stages=2
     )
     return c
+
+
+def run_backward(a, b, grad_output=None):
+    # dA = grad_output @ B.T
+    # dB = A.T @ grad_output
+    
+    dA = run(grad_output, b.t())
+    dB = run(a.t(), grad_output)
+    
+    return dA, dB
+

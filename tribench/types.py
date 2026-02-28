@@ -26,6 +26,7 @@ class EntrypointsSpec:
     make_inputs: str
     reference: str
     triton: str
+    backward: str | None = None
     estimate: str | None = None
     variants: dict[str, str] = dc.field(default_factory=dict)
 
@@ -66,6 +67,7 @@ class KernelEntrypoints(Protocol):
     def make_inputs(self, case: dict, device: str, seed: int, dtype: Any) -> dict: ...
     def reference(self, **inputs: Any) -> Any: ...
     def triton(self, **inputs: Any) -> Any: ...
+    def backward(self, **inputs: Any) -> Any: ...
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +94,7 @@ class BenchResult:
     layout: str
     latency_ms_p50: float
     latency_ms_p95: float
+    pass_type: str = "forward"
     variant: str | None = None
     tflops: float | None = None
     gbps: float | None = None

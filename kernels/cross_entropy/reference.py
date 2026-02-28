@@ -15,10 +15,26 @@ def make_inputs(params: dict, device: str, seed: int, dtype: torch.dtype):
     mask = torch.rand((B * T,), device=device) < 0.1
     target[mask] = ignore_index
 
-    return {"_input": input, "target": target, "ignore_index": ignore_index}
+    # For backward
+    grad_output = torch.randn((), dtype=torch.float32, device=device)
+
+    return {
+        "_input": input, 
+        "target": target, 
+        "ignore_index": ignore_index,
+        "grad_output": grad_output
+    }
 
 
-def ref(_input: torch.Tensor, target: torch.Tensor, ignore_index: int):
+def ref(_input: torch.Tensor, target: torch.Tensor, ignore_index: int, grad_output: torch.Tensor):
     # PyTorch CrossEntropy expects (N, C) or (N, d1, d2, ..., K, C)
     # Our input is (BT, V), target is (BT)
     return F.cross_entropy(_input, target, ignore_index=ignore_index, reduction="mean")
+
+
+def ref_backward(_input: torch.Tensor, target: torch.Tensor, ignore_index: int, grad_output: torch.Tensor):
+    _input.grad = None
+    loss = F.cross_entropy(_input, target, ignore_index=ignore_index, reduction="mean")
+    loss.backward(grad_output)
+    return _input.grad
+

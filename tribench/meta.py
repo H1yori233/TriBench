@@ -43,6 +43,7 @@ def load_meta(path: str | Path) -> KernelMeta:
         make_inputs=ep_raw.get("make_inputs"),
         reference=ep_raw.get("reference"),
         triton=ep_raw.get("triton"),
+        backward=ep_raw.get("backward"),
         estimate=ep_raw.get("estimate"),
         variants=ep_raw.get("variants", {}),
     )
@@ -153,7 +154,7 @@ def validate_entrypoints(meta: KernelMeta) -> list[str]:
     errors: list[str] = []
     kernel_dir = Path(meta.kernel_dir)
 
-    for ep_name in ("make_inputs", "reference", "triton", "estimate"):
+    for ep_name in ("make_inputs", "reference", "triton", "backward", "estimate"):
         spec: str | None = getattr(meta.entrypoints, ep_name)
         if spec is None:
             continue

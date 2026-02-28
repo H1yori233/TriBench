@@ -68,7 +68,7 @@ def _triton_rope(
     tl.store(k_ptr + second_half_k_offsets, new_k_tile_2, mask=first_k_mask)
 
 
-def run(*, q, k, cos, sin) -> tuple:
+def run(*, q, k, cos, sin, grad_output) -> tuple:
     """Triton RoPE wrapper."""
     # q, k: [batch_size, num_heads, seq_len, head_dim]
     # In Triton kernels, we usually want (bsz, seq_len, num_heads, head_dim) for better access patterns
@@ -114,3 +114,11 @@ def run(*, q, k, cos, sin) -> tuple:
     )
     
     return q.transpose(1, 2), k.transpose(1, 2)
+
+
+def run_backward(*, q, k, cos, sin, grad_output) -> tuple:
+    """Triton RoPE backward wrapper."""
+    dq_embed, dk_embed = grad_output
+    # RoPE backward is RoPE with -sin
+    return run(q=dq_embed, k=dk_embed, cos=cos, sin=-sin, grad_output=None)
+

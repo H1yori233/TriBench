@@ -65,7 +65,7 @@ def baddbmm_kernel(
     tl.store(o_ptrs, out.to(O.dtype.element_ty), mask=mask_c)
 
 
-def run(bias, A, B, beta=1.0, alpha=1.0):
+def run(bias, A, B, beta=1.0, alpha=1.0, grad_output=None):
     batch, M, K = A.shape
     _, _, N = B.shape
     
@@ -92,3 +92,36 @@ def run(bias, A, B, beta=1.0, alpha=1.0):
         num_warps=4, num_stages=3
     )
     return out
+
+
+
+def run_backward(bias, A, B, beta=1.0, alpha=1.0, grad_output=None):
+    # dA = alpha * (grad_output @ B.T)
+    # dB = alpha * (A.T @ grad_output)
+    # dbias = beta * grad_output
+    
+    batch, M, K = A.shape
+    _, _, N = B.shape
+    
+    # We reuse 'run' to compute dA and dB by passing appropriate inputs
+    # run(bias, A, B, beta, alpha) -> beta*bias + alpha * (A@B)
+    
+    # 1. dA = alpha * (grad_output @ B.T)
+    #    B.T is (batch, N, K)
+    #    grad_output is (batch, M, N)
+    #    dA is (batch, M, K)
+    zero_bias_K = torch.zeros((batch, M, K), dtype=A.dtype, device=A.device)
+    dA = run(zero_bias_K, grad_output, B.transpose(1, 2), beta=0.0, alpha=alpha)
+    
+    # 2. dB = alpha * (A.T @ grad_output)
+    #    A.T is (batch, K, M)
+    #    grad_output is (batch, M, N)
+    #    dB is (batch, K, N)
+    zero_bias_N = torch.zeros((batch, K, N), dtype=B.dtype, device=B.device)
+    dB = run(zero_bias_N, A.transpose(1, 2), grad_output, beta=0.0, alpha=alpha)
+    
+    # 3. dbias = beta * grad_output
+    dbias = beta * grad_output
+    
+    return dbias, dA, dB
+

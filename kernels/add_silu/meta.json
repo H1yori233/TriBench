@@ -11,6 +11,7 @@
         "make_inputs": "reference.py:make_inputs",
         "reference": "reference.py:ref",
         "triton": "triton_impl.py:run_fused",
+        "backward": "triton_impl.py:run_backward",
         "estimate": "reference.py:estimate",
         "variants": {
             "sequential": "triton_impl.py:run_sequential"

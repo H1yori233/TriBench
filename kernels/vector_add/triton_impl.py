@@ -23,7 +23,7 @@ def add_kernel(
     tl.store(out_ptr + offsets, output, mask=mask)
 
 
-def run(*, x: torch.Tensor, y: torch.Tensor, block_size: int = 1024) -> torch.Tensor:
+def run(*, x: torch.Tensor, y: torch.Tensor, block_size: int = 1024, grad_output=None) -> torch.Tensor:
     """Triton vector addition wrapper."""
     assert x.is_contiguous() and y.is_contiguous(), "Inputs must be contiguous"
     output = torch.empty_like(x)
@@ -31,3 +31,8 @@ def run(*, x: torch.Tensor, y: torch.Tensor, block_size: int = 1024) -> torch.Te
     grid = (triton.cdiv(n_elements, block_size),)
     add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=block_size)
     return output
+
+def run_backward(*, x, y, grad_output, block_size: int = 1024):
+    # dx = dz, dy = dz
+    return grad_output, grad_output
+

@@ -6,12 +6,21 @@ def make_inputs(params, device, seed, dtype):
     N = params["N"]
     torch_dtype = torch.float16 if dtype == "fp16" else (torch.bfloat16 if dtype == "bf16" else torch.float32)
         
-    x = torch.randn(N, device=device, dtype=torch_dtype)
-    y = torch.randn(N, device=device, dtype=torch_dtype)
-    return {"x": x, "y": y}
+    x = torch.randn(N, device=device, dtype=torch_dtype).requires_grad_(True)
+    y = torch.randn(N, device=device, dtype=torch_dtype).requires_grad_(True)
+    grad_output = torch.randn(N, device=device, dtype=torch_dtype)
+    return {"x": x, "y": y, "grad_output": grad_output}
 
-def ref(x, y):
+def ref(x, y, grad_output):
     return F.silu(x + y)
+
+def ref_backward(x, y, grad_output):
+    x.grad = None
+    y.grad = None
+    z = F.silu(x + y)
+    z.backward(grad_output)
+    return x.grad, y.grad
+
 
 def estimate(params):
     N = params["N"]

@@ -7,14 +7,21 @@ def make_inputs(params: dict, device: str, seed: int, dtype: torch.dtype):
     T = params.get("T", 4096)
     H = params.get("H", 14336)
 
-    # In GEGLU, input x is often projected to (B, T, 2*H) then split
-    # or passed as two tensors (a, b)
-    # Liger-Kernel's geglu_forward takes (a, b)
     a = torch.randn((B * T, H), dtype=dtype, device=device, requires_grad=True)
     b = torch.randn((B * T, H), dtype=dtype, device=device, requires_grad=True)
-    return {"a": a, "b": b}
+    grad_output = torch.randn((B * T, H), dtype=dtype, device=device)
+    return {"a": a, "b": b, "grad_output": grad_output}
 
 
-def ref(a, b):
+def ref(a, b, grad_output):
     # PyTorch GELU default is 'none' approximation, but Liger uses 'tanh'
     return F.gelu(a, approximate='tanh') * b
+
+
+def ref_backward(a, b, grad_output):
+    a.grad = None
+    b.grad = None
+    y = F.gelu(a, approximate='tanh') * b
+    y.backward(grad_output)
+    return a.grad, b.grad
+

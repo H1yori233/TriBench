@@ -109,6 +109,7 @@ def run_benchmark(
     quantiles: list[float] | None = None,
     timer_backend: str = "triton_do_bench",
     run_correctness: bool = True,
+    pass_type: str = "forward",
 ) -> BenchResult:
     """Run a two-stage (compile/warmup → benchmark) measurement for one case."""
 
@@ -157,6 +158,7 @@ def run_benchmark(
         layout=layout,
         latency_ms_p50=p50,
         latency_ms_p95=p95,
+        pass_type=pass_type,
         tflops=tflops,
         gbps=gbps,
         timer_backend=timer_backend,

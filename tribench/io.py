@@ -77,8 +77,8 @@ def write_summary_md(record: RunRecord, output_dir: str | Path) -> Path:
 
     # Results table
     lines.append("## Results\n")
-    lines.append("| Kernel | Case | dtype | p50 (ms) | p95 (ms) | TFLOPS | GB/s | Correct |")
-    lines.append("|--------|------|-------|----------|----------|--------|------|---------|")
+    lines.append("| Kernel | Case | Mode | dtype | p50 (ms) | p95 (ms) | TFLOPS | GB/s | Correct |")
+    lines.append("|--------|------|------|-------|----------|----------|--------|------|---------|")
     for r in record.results:
         tflops = f"{r.tflops:.2f}" if r.tflops is not None else "-"
         gbps = f"{r.gbps:.1f}" if r.gbps is not None else "-"
@@ -86,7 +86,7 @@ def write_summary_md(record: RunRecord, output_dir: str | Path) -> Path:
         if r.correctness is not None:
             correct = "passed" if r.correctness.passed else "failed"
         lines.append(
-            f"| {r.kernel} | {r.case_name} | {r.dtype} | "
+            f"| {r.kernel} | {r.case_name} | {r.pass_type} | {r.dtype} | "
             f"{r.latency_ms_p50:.4f} | {r.latency_ms_p95:.4f} | "
             f"{tflops} | {gbps} | {correct} |"
         )

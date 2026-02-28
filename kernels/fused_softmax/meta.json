@@ -10,9 +10,10 @@
         "triton-tutorial"
     ],
     "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
         "reference": "reference.py:ref",
         "triton": "triton_impl.py:run",
-        "make_inputs": "reference.py:make_inputs",
+        "backward": "triton_impl.py:run_backward",
         "estimate": "reference.py:estimate"
     },
     "supported": {

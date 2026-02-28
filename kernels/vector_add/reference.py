@@ -5,14 +5,23 @@ def make_inputs(case: dict, device: str, seed: int, dtype: torch.dtype) -> dict:
     """Generate input tensors for vector addition."""
     torch.manual_seed(seed)
     N = case["N"]
-    x = torch.randn(N, device=device, dtype=dtype)
-    y = torch.randn(N, device=device, dtype=dtype)
-    return {"x": x, "y": y}
+    x = torch.randn(N, device=device, dtype=dtype).requires_grad_(True)
+    y = torch.randn(N, device=device, dtype=dtype).requires_grad_(True)
+    grad_output = torch.randn(N, device=device, dtype=dtype)
+    return {"x": x, "y": y, "grad_output": grad_output}
 
 
-def ref(*, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+def ref(*, x: torch.Tensor, y: torch.Tensor, grad_output: torch.Tensor) -> torch.Tensor:
     """PyTorch reference: element-wise addition."""
     return x + y
+
+def ref_backward(x: torch.Tensor, y: torch.Tensor, grad_output: torch.Tensor):
+    x.grad = None
+    y.grad = None
+    z = x + y
+    z.backward(grad_output)
+    return x.grad, y.grad
+
 
 
 def estimate(case: dict) -> dict:

@@ -28,6 +28,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_test.add_argument("--kernel", default="all", help="Kernel name or 'all'")
     p_test.add_argument("--cases", default=None, help="Comma-separated case names")
     p_test.add_argument("--dtype", default=None, help="Comma-separated dtypes (fp16,bf16,fp32)")
+    p_test.add_argument("--pass-type", default="forward", choices=["forward", "backward", "both"], help="Forward or backward pass")
     p_test.add_argument("--device", default="cuda:0", help="Device (default: cuda:0)")
     p_test.add_argument("--seed", type=int, default=0, help="Random seed (default: 0)")
 
@@ -49,6 +50,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Timer backend",
     )
     p_run.add_argument("--output-dir", default="results", help="Output directory")
+    p_run.add_argument("--pass-type", default="forward", choices=["forward", "backward", "both"], help="Forward or backward pass")
     p_run.add_argument("--no-correctness", action="store_true", help="Skip correctness checks")
 
     return parser
@@ -108,7 +110,10 @@ def _cmd_test(args: argparse.Namespace) -> int:
     from .registry import KernelRegistry
 
     reg = KernelRegistry()
-    names = reg.kernel_names() if args.kernel == "all" else [args.kernel]
+    if args.kernel == "all":
+        names = reg.kernel_names()
+    else:
+        names = [n.strip() for n in args.kernel.split(",")]
 
     dtype_filter = args.dtype.split(",") if args.dtype else None
     case_filter = args.cases.split(",") if args.cases else None
@@ -127,25 +132,47 @@ def _cmd_test(args: argparse.Namespace) -> int:
             impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
 
         print(f"\n--- {name} ({len(cases)} case(s)) ---")
-        for case in cases:
-            inputs = materialize_inputs(make_inputs_fn, case, args.device, args.seed)
-            ref_out = reference_fn(**inputs)
-            
-            for impl_name, impl_fn in impls:
-                tri_out = impl_fn(**inputs)
-                import torch
-                torch.cuda.synchronize()
+        pass_types = ["forward", "backward"] if args.pass_type == "both" else [args.pass_type]
 
-                result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
-                status = "PASS" if result.passed else "FAIL"
-                print(
-                    f"  {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
-                    f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
-                )
-                if not result.passed:
-                    all_passed = False
-                    if result.error_msg:
-                        print(f" {result.error_msg}")
+        for pass_type in pass_types:
+            if pass_type == "backward" and meta.entrypoints.backward is None:
+                continue
+
+            print(f"  Mode: {pass_type}")
+            make_inputs_fn = reg.load_make_inputs(name)
+            
+            if pass_type == "forward":
+                reference_fn = reg.load_reference(name)
+                triton_fn = reg.load_triton(name)
+                impls = [("triton", triton_fn)]
+                for v_name in meta.entrypoints.variants.keys():
+                    impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
+            else:
+                reference_fn = reg.load_backward(name) # In backward mode, 'reference' is the backward ref
+                # Note: Currently we don't support variants for backward in meta.json beyond 'backward' entrypoint
+                # we could add variants: {"backward:variant": "..."} but let's keep it simple for now.
+                triton_fn = reg.load_backward(name)
+                impls = [("triton", triton_fn)]
+
+            for case in cases:
+                inputs = materialize_inputs(make_inputs_fn, case, args.device, args.seed)
+                ref_out = reference_fn(**inputs)
+                
+                for impl_name, impl_fn in impls:
+                    tri_out = impl_fn(**inputs)
+                    import torch
+                    torch.cuda.synchronize()
+
+                    result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
+                    status = "PASS" if result.passed else "FAIL"
+                    print(
+                        f"    {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
+                        f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
+                    )
+                    if not result.passed:
+                        all_passed = False
+                        if result.error_msg:
+                            print(f"     {result.error_msg}")
 
     return 0 if all_passed else 1
 
@@ -159,7 +186,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
     from .types import RunRecord
 
     reg = KernelRegistry()
-    names = reg.kernel_names() if args.kernel == "all" else [args.kernel]
+    if args.kernel == "all":
+        names = reg.kernel_names()
+    else:
+        names = [n.strip() for n in args.kernel.split(",")]
 
     dtype_filter = args.dtype.split(",") if args.dtype else None
     case_filter = args.cases.split(",") if args.cases else None
@@ -198,42 +228,64 @@ def _cmd_run(args: argparse.Namespace) -> int:
             impls.append((v_name, reg.load_variant(name, v_name)))
 
         print(f"\n--- Benchmarking {name} ({len(cases)} case(s)) ---")
-        for case in cases:
-            for impl_name, impl_fn in impls:
-                result = run_benchmark(
-                    kernel_name=name,
-                    meta=meta,
-                    make_inputs_fn=make_inputs_fn,
-                    reference_fn=reference_fn,
-                    triton_fn=impl_fn,
-                    estimate_fn=estimate_fn,
-                    case=case,
-                    device=args.device,
-                    seed=args.seed,
-                    warmup_ms=args.warmup_ms,
-                    rep_ms=args.rep_ms,
-                    quantiles=quantiles,
-                    timer_backend=args.timer,
-                    run_correctness=not args.no_correctness,
-                )
-                
-                # set variant name (if not default triton)
-                if impl_name != "triton":
-                    result.variant = impl_name
-                
-                record.results.append(result)
+        pass_types = ["forward", "backward"] if args.pass_type == "both" else [args.pass_type]
 
-                corr = ""
-                if result.correctness:
-                    corr = " ✅" if result.correctness.passed else " ❌"
-                tflops = f"  {result.tflops:.2f} TFLOPS" if result.tflops else ""
-                gbps = f"  {result.gbps:.1f} GB/s" if result.gbps else ""
-                v_label = f" [{impl_name}]" if impl_name != "triton" else ""
-                print(
-                    f"  {result.case_name}{v_label}  {result.dtype}  "
-                    f"p50={result.latency_ms_p50:.4f}ms  p95={result.latency_ms_p95:.4f}ms"
-                    f"{tflops}{gbps}{corr}"
-                )
+        for pass_type in pass_types:
+            if pass_type == "backward" and meta.entrypoints.backward is None:
+                continue
+            
+            print(f"  Mode: {pass_type}")
+            make_inputs_fn = reg.load_make_inputs(name)
+            estimate_fn = reg.load_estimate(name) # TODO: backward estimate?
+
+            if pass_type == "forward":
+                reference_fn = reg.load_reference(name)
+                main_triton_fn = reg.load_triton(name)
+                impls = [("triton", main_triton_fn)]
+                for v_name in meta.entrypoints.variants.keys():
+                    impls.append((v_name, reg.load_variant(name, v_name)))
+            else:
+                reference_fn = reg.load_backward(name)
+                main_triton_fn = reg.load_backward(name)
+                impls = [("triton", main_triton_fn)]
+
+            for case in cases:
+                for impl_name, impl_fn in impls:
+                    result = run_benchmark(
+                        kernel_name=name,
+                        meta=meta,
+                        make_inputs_fn=make_inputs_fn,
+                        reference_fn=reference_fn,
+                        triton_fn=impl_fn,
+                        estimate_fn=estimate_fn,
+                        case=case,
+                        device=args.device,
+                        seed=args.seed,
+                        warmup_ms=args.warmup_ms,
+                        rep_ms=args.rep_ms,
+                        quantiles=quantiles,
+                        timer_backend=args.timer,
+                        run_correctness=not args.no_correctness,
+                        pass_type=pass_type,
+                    )
+                    
+                    # set variant name (if not default triton)
+                    if impl_name != "triton":
+                        result.variant = impl_name
+                    
+                    record.results.append(result)
+
+                    corr = ""
+                    if result.correctness:
+                        corr = " ✅" if result.correctness.passed else " ❌"
+                    tflops = f"  {result.tflops:.2f} TFLOPS" if result.tflops else ""
+                    gbps = f"  {result.gbps:.1f} GB/s" if result.gbps else ""
+                    v_label = f" [{impl_name}]" if impl_name != "triton" else ""
+                    print(
+                        f"    {result.case_name}{v_label}  {result.dtype}  "
+                        f"p50={result.latency_ms_p50:.4f}ms  p95={result.latency_ms_p95:.4f}ms"
+                        f"{tflops}{gbps}{corr}"
+                    )
 
     # Write outputs
     json_path = write_json(record, args.output_dir)
