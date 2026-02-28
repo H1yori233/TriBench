@@ -27,6 +27,7 @@ class EntrypointsSpec:
     reference: str
     triton: str
     estimate: str | None = None
+    variants: dict[str, str] = dc.field(default_factory=dict)
 
 
 @dc.dataclass
@@ -91,6 +92,7 @@ class BenchResult:
     layout: str
     latency_ms_p50: float
     latency_ms_p95: float
+    variant: str | None = None
     tflops: float | None = None
     gbps: float | None = None
     timer_backend: str = "triton_do_bench"

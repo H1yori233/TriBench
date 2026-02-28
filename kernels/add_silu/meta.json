@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "name": "add_silu",
+    "family": "elementwise",
+    "description": "Fused Add + SiLU vs Sequential implementation",
+    "tags": [
+        "composition",
+        "fusion"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run_fused",
+        "estimate": "reference.py:estimate",
+        "variants": {
+            "sequential": "triton_impl.py:run_sequential"
+        }
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "large",
+            "N": 16777216
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2
+    }
+}

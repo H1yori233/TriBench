@@ -121,24 +121,31 @@ def _cmd_test(args: argparse.Namespace) -> int:
         reference_fn = reg.load_reference(name)
         triton_fn = reg.load_triton(name)
 
+        # Collect all implementations to test (main + variants)
+        impls = [("triton", triton_fn)]
+        for v_name in meta.entrypoints.variants.keys():
+            impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
+
         print(f"\n--- {name} ({len(cases)} case(s)) ---")
         for case in cases:
             inputs = materialize_inputs(make_inputs_fn, case, args.device, args.seed)
             ref_out = reference_fn(**inputs)
-            tri_out = triton_fn(**inputs)
-            import torch
-            torch.cuda.synchronize()
+            
+            for impl_name, impl_fn in impls:
+                tri_out = impl_fn(**inputs)
+                import torch
+                torch.cuda.synchronize()
 
-            result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
-            status = "PASS" if result.passed else "FAIL"
-            print(
-                f"  {status}  {case['case_name']}  dtype={case['dtype']}  "
-                f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
-            )
-            if not result.passed:
-                all_passed = False
-                if result.error_msg:
-                    print(f" {result.error_msg}")
+                result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
+                status = "PASS" if result.passed else "FAIL"
+                print(
+                    f"  {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
+                    f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
+                )
+                if not result.passed:
+                    all_passed = False
+                    if result.error_msg:
+                        print(f" {result.error_msg}")
 
     return 0 if all_passed else 1
 
@@ -185,36 +192,48 @@ def _cmd_run(args: argparse.Namespace) -> int:
         triton_fn = reg.load_triton(name)
         estimate_fn = reg.load_estimate(name)
 
+        # Collect all implementations to test (main + variants)
+        impls = [("triton", triton_fn)]
+        for v_name in meta.entrypoints.variants.keys():
+            impls.append((v_name, reg.load_variant(name, v_name)))
+
         print(f"\n--- Benchmarking {name} ({len(cases)} case(s)) ---")
         for case in cases:
-            result = run_benchmark(
-                kernel_name=name,
-                meta=meta,
-                make_inputs_fn=make_inputs_fn,
-                reference_fn=reference_fn,
-                triton_fn=triton_fn,
-                estimate_fn=estimate_fn,
-                case=case,
-                device=args.device,
-                seed=args.seed,
-                warmup_ms=args.warmup_ms,
-                rep_ms=args.rep_ms,
-                quantiles=quantiles,
-                timer_backend=args.timer,
-                run_correctness=not args.no_correctness,
-            )
-            record.results.append(result)
+            for impl_name, impl_fn in impls:
+                result = run_benchmark(
+                    kernel_name=name,
+                    meta=meta,
+                    make_inputs_fn=make_inputs_fn,
+                    reference_fn=reference_fn,
+                    triton_fn=impl_fn,
+                    estimate_fn=estimate_fn,
+                    case=case,
+                    device=args.device,
+                    seed=args.seed,
+                    warmup_ms=args.warmup_ms,
+                    rep_ms=args.rep_ms,
+                    quantiles=quantiles,
+                    timer_backend=args.timer,
+                    run_correctness=not args.no_correctness,
+                )
+                
+                # set variant name (if not default triton)
+                if impl_name != "triton":
+                    result.variant = impl_name
+                
+                record.results.append(result)
 
-            corr = ""
-            if result.correctness:
-                corr = " ✅" if result.correctness.passed else " ❌"
-            tflops = f"  {result.tflops:.2f} TFLOPS" if result.tflops else ""
-            gbps = f"  {result.gbps:.1f} GB/s" if result.gbps else ""
-            print(
-                f"  {result.case_name}  {result.dtype}  "
-                f"p50={result.latency_ms_p50:.4f}ms  p95={result.latency_ms_p95:.4f}ms"
-                f"{tflops}{gbps}{corr}"
-            )
+                corr = ""
+                if result.correctness:
+                    corr = " ✅" if result.correctness.passed else " ❌"
+                tflops = f"  {result.tflops:.2f} TFLOPS" if result.tflops else ""
+                gbps = f"  {result.gbps:.1f} GB/s" if result.gbps else ""
+                v_label = f" [{impl_name}]" if impl_name != "triton" else ""
+                print(
+                    f"  {result.case_name}{v_label}  {result.dtype}  "
+                    f"p50={result.latency_ms_p50:.4f}ms  p95={result.latency_ms_p95:.4f}ms"
+                    f"{tflops}{gbps}{corr}"
+                )
 
     # Write outputs
     json_path = write_json(record, args.output_dir)

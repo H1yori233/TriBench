@@ -83,6 +83,12 @@ class KernelRegistry:
     def load_triton(self, name: str) -> Callable:
         return self.load_symbol(name, self.get_meta(name).entrypoints.triton)
 
+    def load_variant(self, name: str, variant_name: str) -> Callable:
+        spec = self.get_meta(name).entrypoints.variants.get(variant_name)
+        if spec is None:
+            raise KeyError(f"Variant '{variant_name}' not found in kernel '{name}'")
+        return self.load_symbol(name, spec)
+
     def load_estimate(self, name: str) -> Callable | None:
         spec = self.get_meta(name).entrypoints.estimate
         if spec is None:

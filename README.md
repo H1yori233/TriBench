@@ -56,6 +56,20 @@ tribench run --kernel all --dtype fp16 --warmup-ms 200 --rep-ms 2000
 - **Reproducibility**: Explicit seed control and environment capture.
 - **Isolation**: Compile/warmup phase is separated from measurement to avoid JIT/autotune overhead.
 
+## Kernel Composition
+
+Compare fused vs. sequential implementations using `variants` in `meta.json`:
+
+```json
+"entrypoints": {
+    "triton": "fused.py:run",
+    "variants": { "sequential": "baseline.py:run" }
+}
+```
+
+Both targets are automatically verified and benchmarked under identical conditions.
+
+
 ## Adding Kernels
 
 1. Create a directory in `kernels/`.

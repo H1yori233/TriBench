@@ -40,10 +40,11 @@ def load_meta(path: str | Path) -> KernelMeta:
 
     ep_raw = raw.get("entrypoints", {})
     entrypoints = EntrypointsSpec(
-        make_inputs=ep_raw["make_inputs"],
-        reference=ep_raw["reference"],
-        triton=ep_raw["triton"],
+        make_inputs=ep_raw.get("make_inputs"),
+        reference=ep_raw.get("reference"),
+        triton=ep_raw.get("triton"),
         estimate=ep_raw.get("estimate"),
+        variants=ep_raw.get("variants", {}),
     )
 
     sup_raw = raw.get("supported", {})
@@ -107,6 +108,14 @@ def validate_meta(raw: dict[str, Any]) -> list[str]:
         for field in REQUIRED_ENTRYPOINT_FIELDS:
             if field not in ep:
                 errors.append(f"Missing entrypoint: '{field}'")
+        variants = ep.get("variants")
+        if variants is not None:
+            if not isinstance(variants, dict):
+                errors.append("'entrypoints.variants' must be a dict")
+            else:
+                for k, v in variants.items():
+                    if not isinstance(k, str) or not isinstance(v, str):
+                        errors.append("'entrypoints.variants' must be a dict of string keys/values")
     elif ep is not None:
         errors.append("'entrypoints' must be a dict")
 
@@ -158,5 +167,15 @@ def validate_entrypoints(meta: KernelMeta) -> list[str]:
 
         if not file_path.exists():
             errors.append(f"Entrypoint file not found: {file_path}")
+
+    # check variants
+    for var_name, spec in meta.entrypoints.variants.items():
+        if ":" not in spec:
+            errors.append(f"Variant '{var_name}' must be 'file.py:symbol', got '{spec}'")
+            continue
+        file_part, symbol = spec.rsplit(":", 1)
+        file_path = kernel_dir / file_part
+        if not file_path.exists():
+            errors.append(f"Variant '{var_name}' file not found: {file_path}")
 
     return errors
