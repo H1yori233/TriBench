@@ -256,20 +256,29 @@ def _cmd_test(args: argparse.Namespace) -> int:
                 ref_out = reference_fn(**inputs)
                 
                 for impl_name, impl_fn in impls:
-                    tri_out = impl_fn(**inputs)
                     import torch
-                    torch.cuda.synchronize()
+                    try:
+                        tri_out = impl_fn(**inputs)
+                        torch.cuda.synchronize()
 
-                    result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
-                    status = "PASS" if result.passed else "FAIL"
-                    print(
-                        f"    {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
-                        f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
-                    )
-                    if not result.passed:
+                        result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
+                        status = "PASS" if result.passed else "FAIL"
+                        print(
+                            f"    {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
+                            f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
+                        )
+                        if not result.passed:
+                            all_passed = False
+                            if result.error_msg:
+                                print(f"     {result.error_msg}")
+                    except Exception as e:
+                        from .errors import get_triton_hint
                         all_passed = False
-                        if result.error_msg:
-                            print(f"     {result.error_msg}")
+                        print(f"    FAIL  {case['case_name']} [{impl_name}] dtype={case['dtype']}  (Exception)")
+                        print(f"     Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}")
+                        hint = get_triton_hint(e)
+                        if hint:
+                            print(f"     Hint: {hint}")
 
     return 0 if all_passed else 1
 
@@ -409,7 +418,17 @@ def main(argv: Sequence[str] | None = None) -> None:
         "test": _cmd_test,
         "run": _cmd_run,
     }
-    exit_code = handlers[args.command](args)
+    try:
+        exit_code = handlers[args.command](args)
+    except Exception as e:
+        from .errors import get_triton_hint
+        hint = get_triton_hint(e)
+        if hint:
+            print(f"\n[TriBench] Triton Error Context", file=sys.stderr)
+            print(f"Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}", file=sys.stderr)
+            print(f"Hint: {hint}\n", file=sys.stderr)
+        raise
+
     sys.exit(exit_code)
 
 
