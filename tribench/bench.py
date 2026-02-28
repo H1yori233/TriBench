@@ -21,10 +21,11 @@ def _do_bench_triton(
     rep_ms: float,
     quantiles: list[float],
 ) -> list[float]:
-    """Use ``triton.testing.do_bench``: returns latencies at requested quantiles."""
+    """Use ``triton.testing.do_bench``: returns all latencies."""
     import triton
+    # We use return_mode="all" to get all raw measurements
     results = triton.testing.do_bench(
-        fn, warmup=int(warmup_ms), rep=int(rep_ms), quantiles=quantiles,
+        fn, warmup=int(warmup_ms), rep=int(rep_ms), return_mode="all",
     )
     if not isinstance(results, (list, tuple)):
         results = [results]
@@ -41,9 +42,18 @@ def _do_bench_cudagraph(
     import triton
     if not hasattr(triton.testing, "do_bench_cudagraph"):
         raise RuntimeError("triton.testing.do_bench_cudagraph not available in this Triton version")
-    results = triton.testing.do_bench_cudagraph(
-        fn, warmup=int(warmup_ms), rep=int(rep_ms), quantiles=quantiles,
-    )
+    # Note: do_bench_cudagraph might not support return_mode="all" in all versions.
+    # If it doesn't, we fallback to quantiles but we try to get a broad set.
+    try:
+        results = triton.testing.do_bench_cudagraph(
+            fn, warmup=int(warmup_ms), rep=int(rep_ms), return_mode="all",
+        )
+    except TypeError:
+        # Fallback if return_mode is not supported
+        results = triton.testing.do_bench_cudagraph(
+            fn, warmup=int(warmup_ms), rep=int(rep_ms), quantiles=quantiles,
+        )
+    
     if not isinstance(results, (list, tuple)):
         results = [results]
     return [float(r) for r in results]
@@ -55,7 +65,7 @@ def _do_bench_cuda_event(
     rep_ms: float,
     quantiles: list[float],
 ) -> list[float]:
-    """Manual CUDA event timing with warmup, returns sorted quantile latencies."""
+    """Manual CUDA event timing with warmup, returns all latencies."""
     # Warmup
     warmup_iters = max(1, int(warmup_ms / 5))
     for _ in range(warmup_iters):
@@ -74,12 +84,7 @@ def _do_bench_cuda_event(
         torch.cuda.synchronize()
         times.append(start.elapsed_time(end))
 
-    times.sort()
-    results: list[float] = []
-    for q in quantiles:
-        idx = min(int(q * len(times)), len(times) - 1)
-        results.append(times[idx])
-    return results
+    return times
 
 
 TIMER_BACKENDS: dict[str, Callable] = {
@@ -114,7 +119,7 @@ def run_benchmark(
     """Run a two-stage (compile/warmup → benchmark) measurement for one case."""
 
     if quantiles is None:
-        quantiles = [0.5, 0.95]
+        quantiles = [0.5, 0.9, 0.95, 0.99]
     if timer_backend not in TIMER_BACKENDS:
         raise ValueError(
             f"Unknown timer backend '{timer_backend}'. "
@@ -141,10 +146,20 @@ def run_benchmark(
         corr_result = check_correctness(ref_out, tri_out, dtype_str, meta.correctness)
 
     timer_fn = TIMER_BACKENDS[timer_backend]
-    latencies = timer_fn(lambda: triton_fn(**inputs), warmup_ms, rep_ms, quantiles)
-
-    p50 = latencies[quantiles.index(0.5)] if 0.5 in quantiles else latencies[0]
-    p95 = latencies[quantiles.index(0.95)] if 0.95 in quantiles else (latencies[1] if len(latencies) > 1 else latencies[0])
+    all_latencies = timer_fn(lambda: triton_fn(**inputs), warmup_ms, rep_ms, quantiles)
+    
+    import numpy as np
+    lats = np.array(all_latencies)
+    
+    p50 = float(np.percentile(lats, 50))
+    p90 = float(np.percentile(lats, 90))
+    p95 = float(np.percentile(lats, 95))
+    p99 = float(np.percentile(lats, 99))
+    
+    l_min = float(np.min(lats))
+    l_max = float(np.max(lats))
+    l_mean = float(np.mean(lats))
+    l_std = float(np.std(lats))
 
     # ---- Metrics ----
     flops, bytes_ = get_estimates(estimate_fn, case["params"])
@@ -157,7 +172,13 @@ def run_benchmark(
         dtype=dtype_str,
         layout=layout,
         latency_ms_p50=p50,
+        latency_ms_p90=p90,
         latency_ms_p95=p95,
+        latency_ms_p99=p99,
+        latency_ms_min=l_min,
+        latency_ms_max=l_max,
+        latency_ms_mean=l_mean,
+        latency_ms_std=l_std,
         pass_type=pass_type,
         tflops=tflops,
         gbps=gbps,

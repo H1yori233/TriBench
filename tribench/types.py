@@ -93,7 +93,13 @@ class BenchResult:
     dtype: str
     layout: str
     latency_ms_p50: float
+    latency_ms_p90: float
     latency_ms_p95: float
+    latency_ms_p99: float
+    latency_ms_min: float
+    latency_ms_max: float
+    latency_ms_mean: float
+    latency_ms_std: float
     pass_type: str = "forward"
     variant: str | None = None
     tflops: float | None = None
@@ -129,7 +135,7 @@ class RunRecord:
     timer_backend: str = "triton_do_bench"
     warmup_ms: float = 200.0
     rep_ms: float = 2000.0
-    quantiles: list[float] = dc.field(default_factory=lambda: [0.5, 0.95])
+    quantiles: list[float] = dc.field(default_factory=lambda: [0.5, 0.9, 0.95, 0.99])
     results: list[BenchResult] = dc.field(default_factory=list)
 
 

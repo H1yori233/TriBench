@@ -42,7 +42,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--seed", type=int, default=0, help="Random seed (default: 0)")
     p_run.add_argument("--warmup-ms", type=float, default=200.0, help="Warmup time in ms")
     p_run.add_argument("--rep-ms", type=float, default=2000.0, help="Repetition time in ms")
-    p_run.add_argument("--quantiles", default="0.5,0.95", help="Comma-separated quantiles")
+    p_run.add_argument("--quantiles", default="0.5,0.9,0.95,0.99", help="Comma-separated quantiles")
     p_run.add_argument(
         "--timer",
         default="triton_do_bench",
