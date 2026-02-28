@@ -78,3 +78,14 @@ Both targets are automatically verified and benchmarked under identical conditio
 4. Verify with `tribench test`.
 
 No framework modifications are required to add new kernels.
+
+
+## Open Source Credits
+
+TriBench incorporates high-performance Triton kernels from the following open-source projects:
+
+- **[Liger-Kernel](https://github.com/linkedin/Liger-Kernel)**.
+- **[FlagGems](https://github.com/flagos-ai/FlagGems)**.
+- **[SageAttention](https://github.com/thu-ml/SageAttention)**.
+- **[FlashAttention](https://github.com/Dao-AILab/flash-attention)**.
+- **[Triton Tutorials](https://github.com/triton-lang/triton)**.
