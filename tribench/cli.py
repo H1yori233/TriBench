@@ -17,6 +17,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", required=True)
 
+    # ---- new ----
+    p_new = sub.add_parser("new", help="Scaffold a new benchmark kernel directory")
+    p_new.add_argument("kernel_name", help="Name of the new kernel")
+
     # ---- list ----
     sub.add_parser("list", help="List all registered kernels and their supported dtypes/cases")
 
@@ -59,6 +63,99 @@ def _build_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 # Subcommand handlers
 # ---------------------------------------------------------------------------
+
+def _cmd_new(args: argparse.Namespace) -> int:
+    import json
+    from pathlib import Path
+
+    kernel_name = args.kernel_name
+    kernel_dir = Path("kernels") / kernel_name
+    if kernel_dir.exists():
+        print(f"Error: Directory '{kernel_dir}' already exists.")
+        return 1
+
+    kernel_dir.mkdir(parents=True)
+
+    # 1. meta.json
+    meta_json = {
+        "schema_version": "1.0",
+        "name": kernel_name,
+        "family": "custom",
+        "description": f"Custom {kernel_name} kernel",
+        "tags": ["custom"],
+        "supported": {
+            "dtypes": ["fp16", "bf16", "fp32"],
+            "backends": ["cuda"]
+        },
+        "entrypoints": {
+            "make_inputs": "reference.py:make_inputs",
+            "reference": "reference.py:reference",
+            "triton": "triton_impl.py:triton_impl",
+            "estimate": "reference.py:estimate"
+        },
+        "correctness": {
+            "atol": 1e-2,
+            "rtol": 1e-2
+        },
+        "metrics": "elementwise",
+        "cases": [
+            {
+                "name": "case_1",
+                "N": 1024
+            }
+        ]
+    }
+    (kernel_dir / "meta.json").write_text(json.dumps(meta_json, indent=4) + "\n")
+
+    # 2. reference.py
+    (kernel_dir / "reference.py").write_text(f'''\
+import torch
+
+def make_inputs(case: dict, device: str, seed: int, dtype: torch.dtype) -> dict:
+    # TODO: Generate dummy inputs
+    torch.manual_seed(seed)
+    N = case["N"]
+    x = torch.randn(N, dtype=dtype, device=device)
+    return {{"x": x}}
+
+def reference(x: torch.Tensor) -> torch.Tensor:
+    # TODO: Implement reference logic
+    return x.clone()
+
+def estimate(**kwargs) -> dict:
+    # TODO: Estimate theoretical FLOPS and memory traffic
+    return {{"flops": 0.0, "bytes": 0.0}}
+''')
+
+    # 3. triton_impl.py
+    (kernel_dir / "triton_impl.py").write_text(f'''\
+import torch
+import triton
+import triton.language as tl
+
+@triton.jit
+def _{kernel_name}_kernel(x_ptr, out_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
+    # TODO: Implement Triton kernel logic
+    pid = tl.program_id(axis=0)
+    block_start = pid * BLOCK_SIZE
+    offsets = block_start + tl.arange(0, BLOCK_SIZE)
+    mask = offsets < n_elements
+    x = tl.load(x_ptr + offsets, mask=mask)
+    tl.store(out_ptr + offsets, x, mask=mask)
+
+def triton_impl(x: torch.Tensor) -> torch.Tensor:
+    # TODO: Implement Triton wrapper
+    out = torch.empty_like(x)
+    n_elements = x.numel()
+    def grid(meta):
+        return (triton.cdiv(n_elements, meta['BLOCK_SIZE']),)
+    _{kernel_name}_kernel[grid](x, out, n_elements, BLOCK_SIZE=1024)
+    return out
+''')
+
+    print(f"Scaffolded new kernel '{kernel_name}' in '{kernel_dir}'")
+    return 0
+
 
 def _cmd_list(args: argparse.Namespace) -> int:
     from .registry import KernelRegistry
@@ -306,6 +403,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     handlers = {
+        "new": _cmd_new,
         "list": _cmd_list,
         "validate-meta": _cmd_validate_meta,
         "test": _cmd_test,

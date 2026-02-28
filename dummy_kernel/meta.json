@@ -1,0 +1,38 @@
+{
+    "schema_version": "1.0",
+    "name": "dummy_kernel",
+    "family": "custom",
+    "description": "Custom dummy_kernel kernel",
+    "tags": [
+        "custom"
+    ],
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "entrypoints": {
+        "make_inputs": "make_inputs",
+        "reference": "reference",
+        "triton": "triton_impl",
+        "estimate": "estimate"
+    },
+    "correctness": {
+        "atol": 0.01,
+        "rtol": 0.01
+    },
+    "metrics": "elementwise",
+    "cases": [
+        {
+            "name": "case_1",
+            "params": {
+                "N": 1024
+            }
+        }
+    ]
+}
