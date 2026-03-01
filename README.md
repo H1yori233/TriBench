@@ -4,6 +4,7 @@
   <p><strong>A Reproducible and Extensible Benchmark Suite for Triton Kernels.</strong></p>
 
   <p>
+    <a href="https://h1yori233.github.io/TriBench/"><img src="https://img.shields.io/badge/docs-website-brightgreen" alt="Website"></a>
     <a href="#"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python Version"></a>
     <a href="#"><img src="https://img.shields.io/badge/Triton-Performance-orange" alt="Triton"></a>
     <a href="#"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License"></a>
