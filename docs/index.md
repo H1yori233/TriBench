@@ -144,6 +144,7 @@ hide:
   </div>
   <div class="tx-buttons">
     <a href="getting-started/" class="tx-btn tx-btn-primary">Get Started</a>
+    <a href="slides/" class="tx-btn tx-btn-secondary" style="border-color: #00e5ff; color: #00e5ff !important;">✨ View Slides</a>
     <a href="commands/" class="tx-btn tx-btn-secondary">Commands</a>
     <a href="https://github.com/H1yori233/TriBench" class="tx-btn tx-btn-secondary">View on GitHub</a>
   </div>
