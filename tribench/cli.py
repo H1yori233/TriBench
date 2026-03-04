@@ -56,6 +56,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--output-dir", default="results", help="Output directory")
     p_run.add_argument("--pass-type", default="forward", choices=["forward", "backward", "both"], help="Forward or backward pass")
     p_run.add_argument("--no-correctness", action="store_true", help="Skip correctness checks")
+    p_run.add_argument("--no-plots", action="store_true", help="Skip plot generation")
 
     return parser
 
@@ -205,6 +206,8 @@ def _cmd_test(args: argparse.Namespace) -> int:
     from .gen import generate_cases, materialize_inputs
     from .correctness import check_correctness
     from .registry import KernelRegistry
+    from .errors import get_triton_hint
+    import torch
 
     reg = KernelRegistry()
     if args.kernel == "all":
@@ -215,70 +218,131 @@ def _cmd_test(args: argparse.Namespace) -> int:
     dtype_filter = args.dtype.split(",") if args.dtype else None
     case_filter = args.cases.split(",") if args.cases else None
 
+    def _clear_cuda_cache() -> None:
+        # CUDA may be left in an error state after OOM; cleanup itself must never crash test flow.
+        try:
+            if torch.cuda.is_available():
+                try:
+                    torch.cuda.synchronize()
+                except Exception:
+                    pass
+                try:
+                    torch.cuda.empty_cache()
+                except Exception as cleanup_err:
+                    print(
+                        f"     Note: CUDA cache cleanup skipped "
+                        f"({cleanup_err.__class__.__name__}: {str(cleanup_err).splitlines()[0] if str(cleanup_err) else ''})"
+                    )
+        except Exception:
+            pass
+
+    def _print_skip(name: str, reason: str, e: Exception) -> None:
+        print(f"\n--- {name} ---")
+        print(f"  SKIP  {reason}")
+        print(f"   Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}")
+        hint = get_triton_hint(e)
+        if hint:
+            print(f"   Hint: {hint}")
+
     all_passed = True
     for name in names:
-        meta = reg.get_meta(name)
-        cases = generate_cases(meta, case_filter=case_filter, dtype_filter=dtype_filter)
-        make_inputs_fn = reg.load_make_inputs(name)
-        reference_fn = reg.load_reference(name)
-        triton_fn = reg.load_triton(name)
-
-        # Collect all implementations to test (main + variants)
-        impls = [("triton", triton_fn)]
-        for v_name in meta.entrypoints.variants.keys():
-            impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
-
-        print(f"\n--- {name} ({len(cases)} case(s)) ---")
-        pass_types = ["forward", "backward"] if args.pass_type == "both" else [args.pass_type]
-
-        for pass_type in pass_types:
-            if pass_type == "backward" and meta.entrypoints.backward is None:
-                continue
-
-            print(f"  Mode: {pass_type}")
+        skip_kernel = False
+        try:
+            meta = reg.get_meta(name)
+            cases = generate_cases(meta, case_filter=case_filter, dtype_filter=dtype_filter)
             make_inputs_fn = reg.load_make_inputs(name)
-            
-            if pass_type == "forward":
-                reference_fn = reg.load_reference(name)
-                triton_fn = reg.load_triton(name)
-                impls = [("triton", triton_fn)]
-                for v_name in meta.entrypoints.variants.keys():
-                    impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
-            else:
-                reference_fn = reg.load_backward(name) # In backward mode, 'reference' is the backward ref
-                # Note: Currently we don't support variants for backward in meta.json beyond 'backward' entrypoint
-                # we could add variants: {"backward:variant": "..."} but let's keep it simple for now.
-                triton_fn = reg.load_backward(name)
-                impls = [("triton", triton_fn)]
+            reference_fn = reg.load_reference(name)
+            triton_fn = reg.load_triton(name)
+        except Exception as e:
+            all_passed = False
+            _print_skip(name, "kernel initialization failed", e)
+            _clear_cuda_cache()
+            continue
 
-            for case in cases:
-                inputs = materialize_inputs(make_inputs_fn, case, args.device, args.seed)
-                ref_out = reference_fn(**inputs)
+        try:
+            # Collect all implementations to test (main + variants)
+            impls = [("triton", triton_fn)]
+            for v_name in meta.entrypoints.variants.keys():
+                impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
+
+            print(f"\n--- {name} ({len(cases)} case(s)) ---")
+            pass_types = ["forward", "backward"] if args.pass_type == "both" else [args.pass_type]
+
+            for pass_type in pass_types:
+                if pass_type == "backward" and meta.entrypoints.backward is None:
+                    continue
+
+                if skip_kernel:
+                    break
+
+                print(f"  Mode: {pass_type}")
+                make_inputs_fn = reg.load_make_inputs(name)
                 
-                for impl_name, impl_fn in impls:
-                    import torch
-                    try:
-                        tri_out = impl_fn(**inputs)
-                        torch.cuda.synchronize()
+                if pass_type == "forward":
+                    reference_fn = reg.load_reference(name)
+                    triton_fn = reg.load_triton(name)
+                    impls = [("triton", triton_fn)]
+                    for v_name in meta.entrypoints.variants.keys():
+                        impls.append((f"variant:{v_name}", reg.load_variant(name, v_name)))
+                else:
+                    reference_fn = reg.load_backward(name) # In backward mode, 'reference' is the backward ref
+                    # Note: Currently we don't support variants for backward in meta.json beyond 'backward' entrypoint
+                    # we could add variants: {"backward:variant": "..."} but let's keep it simple for now.
+                    triton_fn = reg.load_backward(name)
+                    impls = [("triton", triton_fn)]
 
-                        result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
-                        status = "PASS" if result.passed else "FAIL"
-                        print(
-                            f"    {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
-                            f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
-                        )
-                        if not result.passed:
-                            all_passed = False
-                            if result.error_msg:
-                                print(f"     {result.error_msg}")
+                for case in cases:
+                    if skip_kernel:
+                        break
+                    try:
+                        inputs = materialize_inputs(make_inputs_fn, case, args.device, args.seed)
+                        ref_out = reference_fn(**inputs)
                     except Exception as e:
-                        from .errors import get_triton_hint
                         all_passed = False
-                        print(f"    FAIL  {case['case_name']} [{impl_name}] dtype={case['dtype']}  (Exception)")
+                        print(f"    SKIP  {case['case_name']} dtype={case['dtype']}  (setup/reference exception)")
                         print(f"     Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}")
                         hint = get_triton_hint(e)
                         if hint:
                             print(f"     Hint: {hint}")
+                        _clear_cuda_cache()
+                        if args.kernel == "all":
+                            print(f"    SKIP  remaining cases for kernel '{name}'")
+                            skip_kernel = True
+                        continue
+                    
+                    for impl_name, impl_fn in impls:
+                        try:
+                            tri_out = impl_fn(**inputs)
+                            torch.cuda.synchronize()
+
+                            result = check_correctness(ref_out, tri_out, case["dtype"], meta.correctness)
+                            status = "PASS" if result.passed else "FAIL"
+                            print(
+                                f"    {status}  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
+                                f"max_abs={result.max_abs_err:.2e}  max_rel={result.max_rel_err:.2e}"
+                            )
+                            if not result.passed:
+                                all_passed = False
+                                if result.error_msg:
+                                    print(f"     {result.error_msg}")
+                        except Exception as e:
+                            all_passed = False
+                            print(f"    FAIL  {case['case_name']} [{impl_name}] dtype={case['dtype']}  (Exception)")
+                            print(f"     Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}")
+                            hint = get_triton_hint(e)
+                            if hint:
+                                print(f"     Hint: {hint}")
+                            _clear_cuda_cache()
+                            if args.kernel == "all":
+                                print(f"    SKIP  remaining cases for kernel '{name}'")
+                                skip_kernel = True
+                                break
+        except Exception as e:
+            all_passed = False
+            _print_skip(name, "kernel aborted by unexpected exception", e)
+            _clear_cuda_cache()
+            if args.kernel != "all":
+                raise
 
     return 0 if all_passed else 1
 
@@ -290,6 +354,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     from .io import make_run_id, write_json, write_summary_md
     from .registry import KernelRegistry
     from .types import RunRecord
+    from .errors import get_triton_hint
+    import torch
 
     reg = KernelRegistry()
     if args.kernel == "all":
@@ -301,6 +367,52 @@ def _cmd_run(args: argparse.Namespace) -> int:
     case_filter = args.cases.split(",") if args.cases else None
     layout_filter = args.layout.split(",") if args.layout else None
     quantiles = [float(q) for q in args.quantiles.split(",")]
+
+    def _clear_cuda_cache() -> None:
+        # CUDA may be left in an error state after OOM; cleanup itself must never crash benchmark flow.
+        try:
+            if torch.cuda.is_available():
+                try:
+                    torch.cuda.synchronize()
+                except Exception:
+                    pass
+                try:
+                    torch.cuda.empty_cache()
+                except Exception as cleanup_err:
+                    print(
+                        f"     Note: CUDA cache cleanup skipped "
+                        f"({cleanup_err.__class__.__name__}: {str(cleanup_err).splitlines()[0] if str(cleanup_err) else ''})"
+                    )
+        except Exception:
+            pass
+
+    def _print_skip(name: str, reason: str, e: Exception) -> None:
+        print(f"\n--- Benchmarking {name} ---")
+        print(f"  SKIP  {reason}")
+        print(f"   Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}")
+        hint = get_triton_hint(e)
+        if hint:
+            print(f"   Hint: {hint}")
+
+    def _format_run_metrics(result: "BenchResult") -> str:
+        extras: list[str] = []
+        if result.tail_ratio_p99_p50 is not None:
+            extras.append(f"tail={result.tail_ratio_p99_p50:.3f}")
+        if result.jitter_cv is not None:
+            extras.append(f"jitter={result.jitter_cv:.3f}")
+        if result.triton_vs_variant_p50_ratio is not None:
+            extras.append(f"tri/var={result.triton_vs_variant_p50_ratio:.3f}")
+        if result.tokens_per_s is not None:
+            extras.append(f"tok/s={result.tokens_per_s:.1f}")
+        if result.elements_per_s is not None:
+            extras.append(f"elem/s={result.elements_per_s:.1f}")
+        if result.sequences_per_s is not None:
+            extras.append(f"seq/s={result.sequences_per_s:.1f}")
+        if result.peak_mem_alloc_mb is not None or result.peak_mem_reserved_mb is not None:
+            alloc = "-" if result.peak_mem_alloc_mb is None else f"{result.peak_mem_alloc_mb:.1f}"
+            reserved = "-" if result.peak_mem_reserved_mb is None else f"{result.peak_mem_reserved_mb:.1f}"
+            extras.append(f"peakMB={alloc}/{reserved}")
+        return f"  {'  '.join(extras)}" if extras else ""
 
     # Build run record
     env = capture_env(cmdline=" ".join(sys.argv))
@@ -314,84 +426,138 @@ def _cmd_run(args: argparse.Namespace) -> int:
         rep_ms=args.rep_ms,
         quantiles=quantiles,
     )
+    has_failures = False
+    triton_p50_by_case: dict[tuple[str, str, str, str, str], float] = {}
 
     for name in names:
-        meta = reg.get_meta(name)
-        cases = generate_cases(
-            meta,
-            case_filter=case_filter,
-            dtype_filter=dtype_filter,
-            layout_filter=layout_filter,
-        )
-        make_inputs_fn = reg.load_make_inputs(name)
-        reference_fn = reg.load_reference(name)
-        triton_fn = reg.load_triton(name)
-        estimate_fn = reg.load_estimate(name)
-
-        # Collect all implementations to test (main + variants)
-        impls = [("triton", triton_fn)]
-        for v_name in meta.entrypoints.variants.keys():
-            impls.append((v_name, reg.load_variant(name, v_name)))
-
-        print(f"\n--- Benchmarking {name} ({len(cases)} case(s)) ---")
-        pass_types = ["forward", "backward"] if args.pass_type == "both" else [args.pass_type]
-
-        for pass_type in pass_types:
-            if pass_type == "backward" and meta.entrypoints.backward is None:
-                continue
-            
-            print(f"  Mode: {pass_type}")
+        skip_kernel = False
+        try:
+            meta = reg.get_meta(name)
+            cases = generate_cases(
+                meta,
+                case_filter=case_filter,
+                dtype_filter=dtype_filter,
+                layout_filter=layout_filter,
+            )
             make_inputs_fn = reg.load_make_inputs(name)
-            estimate_fn = reg.load_estimate(name) # TODO: backward estimate?
+            reference_fn = reg.load_reference(name)
+            triton_fn = reg.load_triton(name)
+            estimate_fn = reg.load_estimate(name)
+        except Exception as e:
+            has_failures = True
+            _print_skip(name, "kernel initialization failed", e)
+            _clear_cuda_cache()
+            continue
 
-            if pass_type == "forward":
-                reference_fn = reg.load_reference(name)
-                main_triton_fn = reg.load_triton(name)
-                impls = [("triton", main_triton_fn)]
-                for v_name in meta.entrypoints.variants.keys():
-                    impls.append((v_name, reg.load_variant(name, v_name)))
-            else:
-                reference_fn = reg.load_backward(name)
-                main_triton_fn = reg.load_backward(name)
-                impls = [("triton", main_triton_fn)]
+        try:
+            # Collect all implementations to test (main + variants)
+            impls = [("triton", triton_fn)]
+            for v_name in meta.entrypoints.variants.keys():
+                impls.append((v_name, reg.load_variant(name, v_name)))
 
-            for case in cases:
-                for impl_name, impl_fn in impls:
-                    result = run_benchmark(
-                        kernel_name=name,
-                        meta=meta,
-                        make_inputs_fn=make_inputs_fn,
-                        reference_fn=reference_fn,
-                        triton_fn=impl_fn,
-                        estimate_fn=estimate_fn,
-                        case=case,
-                        device=args.device,
-                        seed=args.seed,
-                        warmup_ms=args.warmup_ms,
-                        rep_ms=args.rep_ms,
-                        quantiles=quantiles,
-                        timer_backend=args.timer,
-                        run_correctness=not args.no_correctness,
-                        pass_type=pass_type,
-                    )
-                    
-                    # set variant name (if not default triton)
-                    if impl_name != "triton":
-                        result.variant = impl_name
-                    
-                    record.results.append(result)
+            print(f"\n--- Benchmarking {name} ({len(cases)} case(s)) ---")
+            pass_types = ["forward", "backward"] if args.pass_type == "both" else [args.pass_type]
 
-                    corr = ""
-                    if result.correctness:
-                        corr = " ✅" if result.correctness.passed else " ❌"
-                    tflops = f"  {result.tflops:.2f} TFLOPS" if result.tflops else ""
-                    gbps = f"  {result.gbps:.1f} GB/s" if result.gbps else ""
-                    v_label = f" [{impl_name}]" if impl_name != "triton" else ""
-                    print(
-                        f"    {result.case_name}{v_label}  {result.dtype}  "
-                        f"p50={result.latency_ms_p50:.4f}ms  p95={result.latency_ms_p95:.4f}ms"
-                        f"{tflops}{gbps}{corr}"
-                    )
+            for pass_type in pass_types:
+                if pass_type == "backward" and meta.entrypoints.backward is None:
+                    continue
+
+                if skip_kernel:
+                    break
+                
+                print(f"  Mode: {pass_type}")
+                make_inputs_fn = reg.load_make_inputs(name)
+                estimate_fn = reg.load_estimate(name) # TODO: backward estimate?
+
+                if pass_type == "forward":
+                    reference_fn = reg.load_reference(name)
+                    main_triton_fn = reg.load_triton(name)
+                    impls = [("triton", main_triton_fn)]
+                    for v_name in meta.entrypoints.variants.keys():
+                        impls.append((v_name, reg.load_variant(name, v_name)))
+                else:
+                    reference_fn = reg.load_backward(name)
+                    main_triton_fn = reg.load_backward(name)
+                    impls = [("triton", main_triton_fn)]
+
+                for case in cases:
+                    if skip_kernel:
+                        break
+                    for impl_name, impl_fn in impls:
+                        try:
+                            result = run_benchmark(
+                                kernel_name=name,
+                                meta=meta,
+                                make_inputs_fn=make_inputs_fn,
+                                reference_fn=reference_fn,
+                                triton_fn=impl_fn,
+                                estimate_fn=estimate_fn,
+                                case=case,
+                                device=args.device,
+                                seed=args.seed,
+                                warmup_ms=args.warmup_ms,
+                                rep_ms=args.rep_ms,
+                                quantiles=quantiles,
+                                timer_backend=args.timer,
+                                run_correctness=not args.no_correctness,
+                                pass_type=pass_type,
+                            )
+                        except Exception as e:
+                            has_failures = True
+                            print(
+                                f"    SKIP  {case['case_name']} [{impl_name}] dtype={case['dtype']}  "
+                                f"(benchmark exception)"
+                            )
+                            print(f"     Error: {e.__class__.__name__}: {str(e).splitlines()[0] if str(e) else ''}")
+                            hint = get_triton_hint(e)
+                            if hint:
+                                print(f"     Hint: {hint}")
+                            _clear_cuda_cache()
+                            if args.kernel == "all":
+                                print(f"    SKIP  remaining cases for kernel '{name}'")
+                                skip_kernel = True
+                                break
+                            raise
+                        
+                        # set variant name (if not default triton)
+                        if impl_name != "triton":
+                            result.variant = impl_name
+
+                        case_key = (
+                            result.kernel,
+                            result.case_name,
+                            result.dtype,
+                            result.layout,
+                            result.pass_type,
+                        )
+                        if impl_name == "triton":
+                            triton_p50_by_case[case_key] = result.latency_ms_p50
+                            result.triton_vs_variant_p50_ratio = 1.0
+                        else:
+                            tri_p50 = triton_p50_by_case.get(case_key)
+                            if tri_p50 is not None and result.latency_ms_p50 > 0:
+                                result.triton_vs_variant_p50_ratio = tri_p50 / result.latency_ms_p50
+                        
+                        record.results.append(result)
+
+                        corr = ""
+                        if result.correctness:
+                            corr = " ✅" if result.correctness.passed else " ❌"
+                        tflops = f"  {result.tflops:.2f} TFLOPS" if result.tflops is not None else ""
+                        gbps = f"  {result.gbps:.1f} GB/s" if result.gbps is not None else ""
+                        extras = _format_run_metrics(result)
+                        v_label = f" [{impl_name}]" if impl_name != "triton" else ""
+                        print(
+                            f"    {result.case_name}{v_label}  {result.dtype}  "
+                            f"p50={result.latency_ms_p50:.4f}ms  p95={result.latency_ms_p95:.4f}ms"
+                            f"{tflops}{gbps}{extras}{corr}"
+                        )
+        except Exception as e:
+            has_failures = True
+            _print_skip(name, "kernel aborted by unexpected exception", e)
+            _clear_cuda_cache()
+            if args.kernel != "all":
+                raise
 
     # Write outputs
     json_path = write_json(record, args.output_dir)
@@ -399,8 +565,22 @@ def _cmd_run(args: argparse.Namespace) -> int:
     print(f"\n📁 Results saved to: {json_path.parent}")
     print(f"   JSON:     {json_path}")
     print(f"   Summary:  {md_path}")
+    if not args.no_plots:
+        try:
+            from .viz import generate_run_plots
 
-    return 0
+            plot_paths = generate_run_plots(record, json_path.parent)
+            if plot_paths:
+                print("   Plots:")
+                for p in plot_paths:
+                    print(f"     - {p}")
+            else:
+                print("   Plots: no plottable data")
+        except Exception as e:
+            print(f"   Plots: skipped ({e})")
+            print("   Hint: install plotting deps with `pip install -e \".[viz]\"`")
+
+    return 0 if not has_failures else 1
 
 
 # ---------------------------------------------------------------------------

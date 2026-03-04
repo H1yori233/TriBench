@@ -6,6 +6,13 @@ from typing import Any, Callable
 import torch
 
 from .correctness import check_correctness
+from .eval_metrics import (
+    compute_domain_throughputs,
+    compute_jitter_cv,
+    compute_tail_ratio,
+    read_peak_memory_mb,
+    reset_peak_memory_stats,
+)
 from .gen import materialize_inputs
 from .metrics import compute_gbps, compute_tflops, get_estimates
 from .types import BenchResult, CorrectnessResult, KernelMeta
@@ -129,6 +136,8 @@ def run_benchmark(
     dtype_str = case["dtype"]
     layout = case["layout"]
 
+    reset_peak_memory_stats(device)
+
     # ---- Stage 0: materialise inputs ----
     inputs = materialize_inputs(make_inputs_fn, case, device, seed)
 
@@ -160,6 +169,10 @@ def run_benchmark(
     l_max = float(np.max(lats))
     l_mean = float(np.mean(lats))
     l_std = float(np.std(lats))
+    tail_ratio = compute_tail_ratio(p99, p50)
+    jitter_cv = compute_jitter_cv(l_std, l_mean)
+    domain_tp = compute_domain_throughputs(case["params"], p50)
+    peak_mem_alloc_mb, peak_mem_reserved_mb = read_peak_memory_mb(device)
 
     # ---- Metrics ----
     flops, bytes_ = get_estimates(estimate_fn, case["params"])
@@ -182,6 +195,13 @@ def run_benchmark(
         pass_type=pass_type,
         tflops=tflops,
         gbps=gbps,
+        tail_ratio_p99_p50=tail_ratio,
+        jitter_cv=jitter_cv,
+        tokens_per_s=domain_tp.tokens_per_s,
+        elements_per_s=domain_tp.elements_per_s,
+        sequences_per_s=domain_tp.sequences_per_s,
+        peak_mem_alloc_mb=peak_mem_alloc_mb,
+        peak_mem_reserved_mb=peak_mem_reserved_mb,
         timer_backend=timer_backend,
         warmup_ms=warmup_ms,
         rep_ms=rep_ms,

@@ -104,6 +104,14 @@ class BenchResult:
     variant: str | None = None
     tflops: float | None = None
     gbps: float | None = None
+    triton_vs_variant_p50_ratio: float | None = None
+    tail_ratio_p99_p50: float | None = None
+    jitter_cv: float | None = None
+    tokens_per_s: float | None = None
+    elements_per_s: float | None = None
+    sequences_per_s: float | None = None
+    peak_mem_alloc_mb: float | None = None
+    peak_mem_reserved_mb: float | None = None
     timer_backend: str = "triton_do_bench"
     warmup_ms: float = 200.0
     rep_ms: float = 2000.0
