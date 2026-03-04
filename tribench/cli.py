@@ -569,16 +569,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
         try:
             from .viz import generate_run_plots
 
-            plot_paths = generate_run_plots(record, json_path.parent)
-            if plot_paths:
-                print("   Plots:")
-                for p in plot_paths:
+            report_paths = generate_run_plots(record, json_path.parent)
+            if report_paths:
+                print("   Report:")
+                for p in report_paths:
                     print(f"     - {p}")
             else:
-                print("   Plots: no plottable data")
+                print("   Report: no data to report")
         except Exception as e:
-            print(f"   Plots: skipped ({e})")
-            print("   Hint: install plotting deps with `pip install -e \".[viz]\"`")
+            print(f"   Report: skipped ({e})")
 
     return 0 if not has_failures else 1
 
