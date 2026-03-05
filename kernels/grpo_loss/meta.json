@@ -1,0 +1,57 @@
+{
+    "schema_version": "1.0",
+    "name": "grpo_loss",
+    "family": "loss",
+    "description": "GRPO (Group Relative Policy Optimization) loss with PPO clipping (Liger-Kernel)",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/grpo_loss.py",
+    "tags": [
+        "loss",
+        "liger-kernel",
+        "rl",
+        "ppo"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 2,
+            "L": 8,
+            "N": 256
+        },
+        {
+            "name": "medium",
+            "B": 4,
+            "L": 32,
+            "N": 1024
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-4,
+                "rtol": 1e-3
+            }
+        }
+    },
+    "metrics": "elementwise"
+}

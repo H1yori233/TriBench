@@ -1,0 +1,54 @@
+{
+    "schema_version": "1.0",
+    "name": "qwen2vl_mrope",
+    "family": "positional_embedding",
+    "description": "Qwen2VL Multimodal Rotary Positional Embedding (M-RoPE), 3-section (t/h/w). Reference is simplified; tolerances relaxed.",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/qwen2vl_mrope.py",
+    "tags": [
+        "positional_embedding",
+        "qwen2vl",
+        "mrope"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 2,
+            "S": 64,
+            "N_Q_H": 8,
+            "N_KV_H": 4,
+            "H": 128,
+            "mrope_section_t": 16,
+            "mrope_section_h": 16
+        }
+    ],
+    "correctness": {
+        "atol": 50.0,
+        "rtol": 50.0,
+        "per_dtype": {
+            "fp32": {
+                "atol": 50.0,
+                "rtol": 50.0
+            }
+        }
+    },
+    "metrics": "positional_embedding"
+}
