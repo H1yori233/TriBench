@@ -1,0 +1,56 @@
+{
+    "schema_version": "1.0",
+    "name": "liger_softmax",
+    "family": "activation",
+    "description": "Liger-Kernel softmax (single-block and multi-block Triton kernels)",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/softmax.py",
+    "tags": [
+        "softmax",
+        "activation",
+        "liger-kernel"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 4,
+            "S": 64,
+            "H": 128
+        },
+        {
+            "name": "large",
+            "B": 4,
+            "S": 512,
+            "H": 1024
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-5,
+                "rtol": 1e-4
+            }
+        }
+    },
+    "metrics": "softmax"
+}

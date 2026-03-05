@@ -1,0 +1,60 @@
+{
+    "schema_version": "1.0",
+    "name": "tiled_mlp",
+    "family": "blas",
+    "description": "Tiled MLP: chunk input and run linear per shard then concat (memory-efficient, no Triton kernel)",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/tiled_mlp.py",
+    "tags": [
+        "tiled",
+        "memory",
+        "liger-kernel"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 2,
+            "T": 512,
+            "H": 1024,
+            "V": 4096,
+            "shards": 4
+        },
+        {
+            "name": "medium",
+            "B": 1,
+            "T": 256,
+            "H": 512,
+            "V": 4096,
+            "shards": 4
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-3,
+                "rtol": 1e-2
+            }
+        }
+    },
+    "metrics": "elementwise"
+}

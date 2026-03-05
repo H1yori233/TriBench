@@ -1,0 +1,57 @@
+{
+    "schema_version": "1.0",
+    "name": "group_norm",
+    "family": "normalization",
+    "description": "Group Normalization with weights and bias (Liger-Kernel)",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/group_norm.py",
+    "tags": [
+        "normalization",
+        "liger-kernel"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "llama3_8b",
+            "B": 1,
+            "T": 4096,
+            "C": 4096,
+            "num_groups": 32
+        },
+        {
+            "name": "llama3_70b",
+            "B": 1,
+            "T": 4096,
+            "C": 8192,
+            "num_groups": 32
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-3,
+                "rtol": 1e-3
+            }
+        }
+    },
+    "metrics": "normalization"
+}

@@ -12,6 +12,7 @@
 </div>
 
 ---
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/H1yori233/TriBench)
 
 TriBench is a lightweight framework designed to simplify the evaluation of Triton kernels. It provides a standardized environment for testing correctness, profiling latency, and comparing different kernel optimizations (e.g., fused vs. sequential) with high reproducibility.
 
@@ -95,6 +96,8 @@ TriBench incorporates high-performance Triton kernels and ideas from several out
 - [SageAttention](https://github.com/thu-ml/SageAttention)
 - [FlashAttention](https://github.com/Dao-AILab/flash-attention)
 - [Triton Tutorials](https://github.com/triton-lang/triton)
+
+
 
 ---
 <div align="center">

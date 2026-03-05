@@ -1,0 +1,51 @@
+{
+    "schema_version": "1.0",
+    "name": "tanh_flaggems",
+    "family": "elementwise",
+    "description": "Element-wise tanh. From FlagGems (pointwise tanh with float32 promotion).",
+    "source": "https://github.com/flagos-ai/FlagGems/blob/master/src/flag_gems/ops/tanh.py",
+    "tags": [
+        "elementwise",
+        "flaggems"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward",
+        "estimate": "reference.py:estimate"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "medium",
+            "N": 4194304
+        },
+        {
+            "name": "large",
+            "N": 16777216
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-5,
+                "rtol": 1e-4
+            }
+        }
+    }
+}
