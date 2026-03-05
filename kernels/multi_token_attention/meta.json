@@ -1,0 +1,54 @@
+{
+    "schema_version": "1.0",
+    "name": "multi_token_attention",
+    "family": "attention",
+    "description": "Multi-token attention: causal mask -> softmax -> conv2d -> mask (Liger, softmax path only)",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/multi_token_attention.py",
+    "tags": [
+        "attention",
+        "liger-kernel",
+        "causal-mask"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 2,
+            "L": 8
+        },
+        {
+            "name": "medium",
+            "B": 4,
+            "L": 32
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-4,
+                "rtol": 1e-3
+            }
+        }
+    },
+    "metrics": "elementwise"
+}

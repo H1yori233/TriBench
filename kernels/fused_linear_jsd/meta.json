@@ -1,0 +1,59 @@
+{
+    "schema_version": "1.0",
+    "name": "fused_linear_jsd",
+    "family": "loss",
+    "description": "Fused Linear Layer + Jensen-Shannon Divergence (student & teacher logits)",
+    "source": "https://github.com/linkedin/Liger-Kernel/blob/main/src/liger_kernel/ops/fused_linear_jsd.py",
+    "tags": [
+        "loss",
+        "fusion",
+        "liger-kernel",
+        "jsd"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run",
+        "backward": "triton_impl.py:run_backward"
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "small",
+            "B": 2,
+            "T": 128,
+            "H": 512,
+            "V": 2048
+        },
+        {
+            "name": "medium",
+            "B": 1,
+            "T": 256,
+            "H": 512,
+            "V": 4096
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-5,
+                "rtol": 1e-4
+            }
+        }
+    },
+    "metrics": "elementwise"
+}

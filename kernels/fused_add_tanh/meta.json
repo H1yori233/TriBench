@@ -1,0 +1,54 @@
+{
+    "schema_version": "1.0",
+    "name": "fused_add_tanh",
+    "family": "elementwise",
+    "description": "Fused Add + Tanh (element-wise). Composition: vector_add + tanh fused into one kernel.",
+    "tags": [
+        "composition",
+        "fusion",
+        "elementwise"
+    ],
+    "entrypoints": {
+        "make_inputs": "reference.py:make_inputs",
+        "reference": "reference.py:ref",
+        "triton": "triton_impl.py:run_fused",
+        "backward": "triton_impl.py:run_backward",
+        "estimate": "reference.py:estimate",
+        "variants": {
+            "sequential": "triton_impl.py:run_sequential"
+        }
+    },
+    "supported": {
+        "dtypes": [
+            "fp16",
+            "bf16",
+            "fp32"
+        ],
+        "layouts": [
+            "contiguous"
+        ],
+        "backends": [
+            "cuda"
+        ]
+    },
+    "cases": [
+        {
+            "name": "medium",
+            "N": 4194304
+        },
+        {
+            "name": "large",
+            "N": 16777216
+        }
+    ],
+    "correctness": {
+        "atol": 1e-2,
+        "rtol": 1e-2,
+        "per_dtype": {
+            "fp32": {
+                "atol": 1e-5,
+                "rtol": 1e-4
+            }
+        }
+    }
+}
