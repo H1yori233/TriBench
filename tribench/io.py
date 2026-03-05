@@ -77,11 +77,27 @@ def write_summary_md(record: RunRecord, output_dir: str | Path) -> Path:
 
     # Results table
     lines.append("## Results\n")
-    lines.append("| Kernel | Case | Mode | dtype | min (ms) | p50 (ms) | p90 (ms) | p99 (ms) | TFLOPS | GB/s | Correct |")
-    lines.append("|--------|------|------|-------|----------|----------|----------|----------|--------|------|---------|")
+    lines.append(
+        "| Kernel | Case | Mode | dtype | min (ms) | p50 (ms) | p90 (ms) | p99 (ms) | "
+        "Tail p99/p50 | Jitter std/mean | Tri/Var p50 | Tok/s | Elem/s | Seq/s | "
+        "PeakAlloc(MB) | PeakRes(MB) | TFLOPS | GB/s | Correct |"
+    )
+    lines.append(
+        "|--------|------|------|-------|----------|----------|----------|----------|"
+        "------------|-----------------|-------------|-------|--------|------|"
+        "--------------|------------|--------|------|---------|"
+    )
     for r in record.results:
         tflops = f"{r.tflops:.2f}" if r.tflops is not None else "-"
         gbps = f"{r.gbps:.1f}" if r.gbps is not None else "-"
+        tail = f"{r.tail_ratio_p99_p50:.3f}" if r.tail_ratio_p99_p50 is not None else "-"
+        jitter = f"{r.jitter_cv:.3f}" if r.jitter_cv is not None else "-"
+        tri_vs_var = f"{r.triton_vs_variant_p50_ratio:.3f}" if r.triton_vs_variant_p50_ratio is not None else "-"
+        tokps = f"{r.tokens_per_s:.1f}" if r.tokens_per_s is not None else "-"
+        elemps = f"{r.elements_per_s:.1f}" if r.elements_per_s is not None else "-"
+        seqps = f"{r.sequences_per_s:.1f}" if r.sequences_per_s is not None else "-"
+        peak_alloc = f"{r.peak_mem_alloc_mb:.1f}" if r.peak_mem_alloc_mb is not None else "-"
+        peak_res = f"{r.peak_mem_reserved_mb:.1f}" if r.peak_mem_reserved_mb is not None else "-"
         correct = "-"
         if r.correctness is not None:
             correct = "passed" if r.correctness.passed else "failed"
@@ -89,7 +105,8 @@ def write_summary_md(record: RunRecord, output_dir: str | Path) -> Path:
             f"| {r.kernel} | {r.case_name} | {r.pass_type} | {r.dtype} | "
             f"{r.latency_ms_min:.4f} | {r.latency_ms_p50:.4f} | "
             f"{r.latency_ms_p90:.4f} | {r.latency_ms_p99:.4f} | "
-            f"{tflops} | {gbps} | {correct} |"
+            f"{tail} | {jitter} | {tri_vs_var} | {tokps} | {elemps} | {seqps} | "
+            f"{peak_alloc} | {peak_res} | {tflops} | {gbps} | {correct} |"
         )
     lines.append("")
 

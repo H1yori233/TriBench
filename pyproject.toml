@@ -16,6 +16,10 @@ dev = [
     "pytest>=7.0",
     "mkdocs-material",
 ]
+viz = [
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+]
 
 [project.scripts]
 tribench = "tribench.cli:main"
