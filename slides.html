@@ -1,0 +1,1273 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TriBench — A Reproducible Benchmark Suite for Triton Kernels</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/black.min.css" id="theme">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/highlight/monokai.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+
+        :root {
+            --c: #00e5ff;
+            --p: #b52ff3;
+            --o: #ff7b00;
+            --pk: #ff3d71;
+            --sf: rgba(22, 22, 28, .7);
+            --sfl: rgba(35, 35, 45, .65);
+            --bd: rgba(255, 255, 255, .08);
+            --t1: #e8e8ed;
+            --t2: #a0a0ab;
+            --t3: #6b6b78
+        }
+
+        body {
+            background: #08080c;
+            overflow: hidden
+        }
+
+        .reveal {
+            font-family: 'Outfit', -apple-system, sans-serif;
+            font-weight: 300;
+            color: var(--t1)
+        }
+
+        .reveal h1,
+        .reveal h2,
+        .reveal h3,
+        .reveal h4 {
+            font-family: 'Outfit', sans-serif;
+            text-transform: none;
+            font-weight: 700;
+            letter-spacing: -.03em;
+            color: #fff
+        }
+
+        .reveal h2 {
+            font-size: 1.25em;
+            margin-bottom: .2em
+        }
+
+        .reveal .controls {
+            color: #555
+        }
+
+        .reveal .progress {
+            color: var(--c);
+            height: 3px
+        }
+
+        .logo-img {
+            height: 180px;
+            object-fit: contain;
+            margin-bottom: .2rem !important;
+            border: none !important;
+            background: none !important;
+            box-shadow: none !important;
+            filter: drop-shadow(0 0 20px rgba(0, 229, 255, .15));
+            animation: float 6s ease-in-out infinite
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-8px)
+            }
+        }
+
+        .gc {
+            background: linear-gradient(135deg, #00e5ff, #7c4dff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700
+        }
+
+        .go {
+            background: linear-gradient(135deg, #ff9900, #ff5500);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700
+        }
+
+        .gp {
+            background: linear-gradient(135deg, #ff3d71, #b52ff3);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700
+        }
+
+        .glass {
+            background: var(--sf);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--bd);
+            border-radius: 16px;
+            padding: 1.2rem 1.5rem;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, .4), inset 0 0 0 1px rgba(255, 255, 255, .04);
+            text-align: left
+        }
+
+        .g2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: .8rem
+        }
+
+        .g3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: .9rem;
+            margin-top: .8rem
+        }
+
+        .g13 {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1rem;
+            margin-top: .8rem
+        }
+
+        .g31 {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+            margin-top: .8rem
+        }
+
+        .card {
+            background: linear-gradient(175deg, rgba(30, 30, 38, .85), rgba(18, 18, 24, .85));
+            border-radius: 14px;
+            padding: 1.1rem 1.3rem;
+            border: 1px solid var(--bd);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .3);
+            transition: all .3s cubic-bezier(.2, .8, .3, 1);
+            text-align: left
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 229, 255, .2);
+            box-shadow: 0 12px 32px rgba(0, 229, 255, .06)
+        }
+
+        .card h4 {
+            color: #fff;
+            margin-bottom: .35rem;
+            font-size: 1.15rem
+        }
+
+        .card p,
+        .card li {
+            color: var(--t2);
+            font-size: 1rem;
+            margin: 0;
+            line-height: 1.5
+        }
+
+        .card.hi {
+            border-color: rgba(0, 229, 255, .3);
+            background: linear-gradient(175deg, rgba(0, 229, 255, .06), rgba(18, 18, 24, .85))
+        }
+
+        p,
+        li {
+            color: var(--t1);
+            font-size: 1.1rem;
+            line-height: 1.6
+        }
+
+        .reveal section li {
+            margin-bottom: .3rem
+        }
+
+        ul li::marker,
+        ol li::marker {
+            color: var(--c)
+        }
+
+        .s {
+            font-size: 1rem !important;
+            line-height: 1.55 !important
+        }
+
+        .d {
+            color: var(--t3) !important
+        }
+
+        .ctr {
+            text-align: center
+        }
+
+        .reveal pre {
+            width: 100%;
+            margin: .6rem auto;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+            border-radius: 8px;
+            border: 1px solid var(--bd);
+            font-size: .75em
+        }
+
+        code.hljs {
+            padding: .9rem;
+            border-radius: 8px
+        }
+
+        code:not(.hljs) {
+            background: rgba(255, 255, 255, .08);
+            color: var(--c);
+            padding: .12em .35em;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: .88em
+        }
+
+        .pipe {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .3rem;
+            margin: .8rem 0;
+            flex-wrap: wrap
+        }
+
+        .pipe .st {
+            background: var(--sfl);
+            border: 1px solid var(--bd);
+            border-radius: 8px;
+            padding: .4rem .7rem;
+            font-size: .82rem;
+            color: var(--t1);
+            font-weight: 500;
+            white-space: nowrap
+        }
+
+        .pipe .ar {
+            color: var(--c);
+            font-size: .95rem;
+            font-weight: 700
+        }
+
+        .lyr {
+            border-radius: 10px;
+            padding: .7rem 1rem;
+            border-left: 3px solid;
+            text-align: left;
+            background: var(--sfl);
+            margin-bottom: .5rem
+        }
+
+        .lyr:last-child {
+            margin-bottom: 0
+        }
+
+        .lyr h4 {
+            margin: 0 0 .2rem;
+            font-size: 1.1rem
+        }
+
+        .lyr p {
+            margin: 0;
+            font-size: .95rem;
+            color: var(--t2)
+        }
+
+        .tag {
+            display: inline-block;
+            padding: .15rem .55rem;
+            border-radius: 99px;
+            font-size: .7rem;
+            font-weight: 500;
+            margin-right: .2rem;
+            border: 1px solid
+        }
+
+        .tag.tc {
+            color: var(--c);
+            border-color: rgba(0, 229, 255, .3);
+            background: rgba(0, 229, 255, .08)
+        }
+
+        .tag.tp {
+            color: var(--p);
+            border-color: rgba(181, 47, 243, .3);
+            background: rgba(181, 47, 243, .08)
+        }
+
+        .tag.to {
+            color: var(--o);
+            border-color: rgba(255, 123, 0, .3);
+            background: rgba(255, 123, 0, .08)
+        }
+
+        .tag.tk {
+            color: var(--pk);
+            border-color: rgba(255, 61, 113, .3);
+            background: rgba(255, 61, 113, .08)
+        }
+
+        .mbar {
+            height: 5px;
+            border-radius: 3px;
+            margin-top: .4rem;
+            background: rgba(255, 255, 255, .06);
+            position: relative;
+            overflow: hidden
+        }
+
+        .mbar .fl {
+            height: 100%;
+            border-radius: 3px;
+            position: absolute;
+            left: 0;
+            top: 0
+        }
+
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: .25;
+            pointer-events: none
+        }
+
+        .o1 {
+            width: 400px;
+            height: 400px;
+            background: var(--p);
+            top: -120px;
+            right: -80px;
+            animation: dr 22s infinite alternate
+        }
+
+        .o2 {
+            width: 480px;
+            height: 480px;
+            background: var(--c);
+            bottom: -150px;
+            left: -140px;
+            animation: dr 28s infinite alternate-reverse
+        }
+
+        @keyframes dr {
+            0% {
+                transform: translate(0, 0) scale(1)
+            }
+
+            100% {
+                transform: translate(40px, 40px) scale(1.08)
+            }
+        }
+
+        hr.dv {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .1), transparent);
+            margin: .8rem 0
+        }
+
+        .reveal .slides section {
+            padding: 16px 20px
+        }
+
+        .stat-row {
+            display: flex;
+            gap: .8rem;
+            margin-top: .7rem;
+            justify-content: center;
+            flex-wrap: wrap
+        }
+
+        .stat {
+            background: var(--sfl);
+            border: 1px solid var(--bd);
+            border-radius: 10px;
+            padding: .6rem 1rem;
+            text-align: center;
+            min-width: 100px
+        }
+
+        .stat .num {
+            font-size: 1.4rem;
+            font-weight: 700;
+            display: block
+        }
+
+        .stat .lbl {
+            font-size: .7rem;
+            color: var(--t3);
+            text-transform: uppercase;
+            letter-spacing: .04em
+        }
+
+        .tbl {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: .6rem;
+            font-size: .95rem
+        }
+
+        .tbl th,
+        .tbl td {
+            padding: .45rem .6rem;
+            text-align: left;
+            border-bottom: 1px solid var(--bd)
+        }
+
+        .tbl th {
+            color: var(--t3);
+            font-weight: 500;
+            font-size: .85rem;
+            text-transform: uppercase;
+            letter-spacing: .05em
+        }
+
+        .tbl td {
+            color: var(--t2)
+        }
+
+        .tbl tr:last-child td {
+            border-bottom: none
+        }
+
+        .tbl .y {
+            color: var(--c);
+            font-weight: 600
+        }
+
+        .tbl .n {
+            color: #444
+        }
+
+        .num-step {
+            display: flex;
+            align-items: flex-start;
+            gap: .7rem;
+            margin-bottom: .6rem
+        }
+
+        .num-step .circle {
+            min-width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: .8rem;
+            color: #fff;
+            flex-shrink: 0;
+            margin-top: 2px
+        }
+
+        .num-step .body {
+            flex: 1
+        }
+
+        .num-step .body h4 {
+            margin: 0 0 .15rem;
+            font-size: 1.05rem
+        }
+
+        .num-step .body p {
+            margin: 0;
+            font-size: .95rem;
+            color: var(--t2)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orb o1"></div>
+    <div class="bg-orb o2"></div>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- S1 COVER -->
+            <section data-transition="zoom">
+                <img src="https://github.com/H1yori233/TriBench/raw/main/assets/logo.png" alt="TriBench Logo"
+                    class="logo-img">
+                <h1 style="font-size:2.8em;margin-bottom:0">TriBench</h1>
+                <p
+                    style="color:var(--t3);font-size:.95em;font-weight:300;letter-spacing:2px;text-transform:uppercase;margin-top:.3rem">
+                    Reproducible Benchmarking for Triton Kernels
+                </p>
+                <div
+                    style="margin-top:2.5rem; color:var(--t2); font-size:0.85rem; font-weight:400; letter-spacing:0.5px">
+                    <span
+                        style="color:var(--c); font-weight:600; text-transform:uppercase; margin-right:10px; letter-spacing:2px">Team</span>
+                    Ziye Deng &nbsp; Yihang Chen &nbsp; Kaiqin Kong &nbsp; Lenan Wu &nbsp; Naicheng Yu &nbsp; Tianyi Liu
+                    &nbsp; Minshen Zhang
+                </div>
+            </section>
+
+            <!-- S1.5 WHAT IS TRITON -->
+            <section data-transition="slide">
+                <h2>What is Triton?</h2>
+                <div class="glass" style="margin-top:1.5rem; padding: 1.5rem; text-align: center;">
+                    <img src="https://imagepphcloud.thepaper.cn/pph/image/145/122/958.jpg" alt="Triton Overview"
+                        style="max-height: 480px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+                </div>
+            </section>
+
+            <!-- S2 WHY BENCHMARK -->
+            <section data-transition="slide">
+                <h2>Why Benchmark?</h2>
+                <div class="g31">
+                    <div>
+                        <div class="lyr" style="border-color:var(--c)">
+                            <h4><span class="gc">Comparability &amp; Reproducibility</span></h4>
+                            <p>Kernel timings shift with JIT, warmup count, reps, and cache state — these settings must
+                                stay fixed across repos.
+                            </p>
+                        </div>
+                        <div class="lyr" style="border-color:var(--p)">
+                            <h4><span class="gp">Maintainability &amp; Extensibility</span></h4>
+                            <p>New kernels, shapes, dtypes, and backends drop in without one-off scripts. The workflow
+                                stays readable as the collection grows.</p>
+                        </div>
+                        <div class="lyr" style="border-color:var(--o)">
+                            <h4><span class="go">Diagnostic Value</span></h4>
+                            <p>Latency alone won't tell you where the bottleneck is. TFLOPS and GB/s show whether a
+                                kernel is compute- or memory-bound.</p>
+                        </div>
+                    </div>
+                    <div class="glass" style="margin-top:0;display:flex;flex-direction:column;justify-content:center">
+                        <p class="s d"
+                            style="margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.06em;font-weight:500">
+                            Measurement sensitivity</p>
+                        <div style="margin-bottom:.5rem">
+                            <p class="s" style="margin:0">❌ Include JIT in timing</p>
+                            <div class="mbar">
+                                <div class="fl" style="width:95%;background:var(--pk)"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:.5rem">
+                            <p class="s" style="margin:0">⚠️ No warmup</p>
+                            <div class="mbar">
+                                <div class="fl" style="width:72%;background:var(--o)"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:.5rem">
+                            <p class="s" style="margin:0">⚠️ Single execution</p>
+                            <div class="mbar">
+                                <div class="fl" style="width:55%;background:#e8b84d"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="s" style="margin:0">✅ Warmup + rep + quantiles</p>
+                            <div class="mbar">
+                                <div class="fl" style="width:12%;background:var(--c)"></div>
+                            </div>
+                        </div>
+                        <p class="s d" style="margin:.6rem 0 0;text-align:center">← lower variance is better</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S3 FROM COURSE TO ENGINEERING -->
+            <section data-transition="slide">
+                <h2>Goals</h2>
+                <div class="pipe">
+                    <span class="st">Collect</span><span class="ar">→</span>
+                    <span class="st">Reproduce</span><span class="ar">→</span>
+                    <span class="st" style="border-color:rgba(0,229,255,.3);color:var(--c)">Formalize</span><span
+                        class="ar">→</span>
+                    <span class="st" style="border-color:rgba(0,229,255,.3);color:var(--c)">Aggregate</span><span
+                        class="ar">→</span>
+                    <span class="st">Publish</span>
+                </div>
+                <div class="g2">
+                    <div class="glass" style="margin-top:0">
+                        <h4 style="font-size:.95rem;color:var(--o)">The Problem</h4>
+                        <p class="s">Triton lets you write GPU kernels, but every repo ships its own
+                            <code>benchmark.py</code>. Warmup, timing, and reporting all differ — results don't line up.
+                        </p>
+                        <hr class="dv">
+                        <p class="s" style="margin:0">Turning collected kernels into a real suite requires one harness
+                            for correctness, fair timing, and readable metrics.</p>
+                    </div>
+                    <div class="glass" style="margin-top:0">
+                        <h4 style="font-size:.95rem;color:var(--c)">TriBench's Role</h4>
+                        <p class="s">TriBench handles the <strong>Formalize</strong> and
+                            <strong>Aggregate</strong> steps:
+                        </p>
+                        <ul class="s" style="padding-left:1.1rem;margin:.4rem 0 0">
+                            <li>One <code>meta.json</code> schema per kernel</li>
+                            <li>Correctness gate before timing</li>
+                            <li>Standard warmup / rep / quantiles</li>
+                            <li>Derived metrics: TFLOPS, GB/s</li>
+                            <li>JSON + Markdown results with env snapshot</li>
+                        </ul>
+                        <p class="s d" style="margin:.5rem 0 0">→ Turns a loose community kernel into a reproducible
+                            benchmark entry.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S4 ECOSYSTEM LANDSCAPE -->
+            <section data-transition="convex">
+                <h2>Landscape</h2>
+                <div class="glass" style="padding:.8rem 1.2rem;margin-bottom:.6rem">
+                    <table class="tbl">
+                        <tr>
+                            <th style="width:22%">Project</th>
+                            <th style="width:14%">Layer</th>
+                            <th>Approach</th>
+                            <th style="width:18%">Self-contained kernels</th>
+                            <th style="width:14%">Data-driven config</th>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:#fff">Triton testing</strong></td>
+                            <td><span class="tag tc">Library</span></td>
+                            <td><code>do_bench</code> / <code>perf_report</code> — utilities, not a suite</td>
+                            <td class="n">—</td>
+                            <td class="n">—</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:#fff">TritonBench</strong></td>
+                            <td><span class="tag tp">Suite</span></td>
+                            <td>PyTorch op suite via submodules; broad coverage, monolithic setup</td>
+                            <td class="n">No</td>
+                            <td class="n">No</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:#fff">KernelBench</strong></td>
+                            <td><span class="tag to">Eval</span></td>
+                            <td>LLM evaluation: <code>fast_p</code> = correctness + speedup threshold</td>
+                            <td class="n">Partial</td>
+                            <td class="n">No</td>
+                        </tr>
+                        <tr>
+                            <td><strong style="color:#fff">MultiKernelBench</strong></td>
+                            <td><span class="tag to">Eval</span></td>
+                            <td>Multi-platform backend abstraction across DSLs</td>
+                            <td class="n">No</td>
+                            <td class="n">No</td>
+                        </tr>
+                        <tr style="background:rgba(0,229,255,.04)">
+                            <td><strong class="gc">TriBench</strong></td>
+                            <td><span class="tag tc">Harness</span></td>
+                            <td>Kernel packs + meta schema + CLI + result logging</td>
+                            <td class="y">✓ Yes</td>
+                            <td class="y">✓ Yes</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="g3">
+                    <div class="card">
+                        <h4 style="font-size:.88rem;color:var(--c)">vs. Triton testing</h4>
+                        <p>Timing utilities only — no registry, no correctness checks, no saved results.</p>
+                    </div>
+                    <div class="card">
+                        <h4 style="font-size:.88rem;color:var(--p)">vs. TritonBench</h4>
+                        <p>One monolithic suite vs. self-contained kernel packs with local <code>meta.json</code>.</p>
+                    </div>
+                    <div class="card">
+                        <h4 style="font-size:.88rem;color:var(--o)">vs. KernelBench</h4>
+                        <p>TriBench can act as the execution layer underneath these generative benchmarks.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S5 CORE PHILOSOPHY + ARCHITECTURE -->
+            <section data-transition="slide">
+                <h2>Core Design</h2>
+                <div class="g13">
+                    <div style="display:flex;flex-direction:column;gap:.6rem">
+                        <div class="card" style="border-top:2px solid var(--c)">
+                            <h4 style="font-size:.9rem">📦 Self-Contained</h4>
+                            <p>Each kernel dir has <code>meta.json</code> + <code>reference.py</code> +
+                                <code>triton_impl.py</code>. Adding a kernel = adding a folder.
+                            </p>
+                        </div>
+                        <div class="card" style="border-top:2px solid var(--p)">
+                            <h4 style="font-size:.9rem">🔌 Lazy Import</h4>
+                            <p>Kernels load on demand. One broken pack won't block the rest.</p>
+                        </div>
+                        <div class="card" style="border-top:2px solid var(--o)">
+                            <h4 style="font-size:.9rem">⚖️ Fair Timing</h4>
+                            <p>Compile and warmup happen outside the measurement window, so A/B comparisons stay fair.
+                            </p>
+                        </div>
+                        <div class="card" style="border-top:2px solid var(--pk)">
+                            <h4 style="font-size:.9rem">🔮 Backend Support</h4>
+                            <p>The schema leaves room for other backends like ROCm/HIP.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="glass" style="margin-top:0;padding:.8rem 1rem">
+                        <p class="s d"
+                            style="margin:0 0 .3rem;text-transform:uppercase;letter-spacing:.05em;font-weight:500">
+                            Directory &amp; Dependency Map</p>
+                        <pre style="margin:0"><code class="language-text" data-trim style="background:transparent;color:#ddd;font-size:.45em;line-height:1.5;padding:.7rem">
+tribench/             ← Core engine
+  registry.py           discover & lazy-load
+  meta.py               parse meta.json schema
+  gen.py                generate typed inputs
+  correctness.py        validate vs reference
+  bench.py              warmup → timing loop
+  metrics.py            derive TFLOPS / GB/s
+  env.py                snapshot environment
+  io.py                 save JSON + Markdown
+  cli.py                CLI (validate/test/run)
+
+kernels/&lt;op&gt;/         ← Kernel packs
+  meta.json              entrypoints / cases /
+                         dtypes / variants
+  reference.py           PyTorch baseline
+  triton_impl.py         Triton kernel(s)
+  bench_entry.py         (optional) custom bench
+                        </code></pre>
+                        <hr class="dv">
+                        <p class="s" style="margin:0">The core only needs <code>meta.json</code> and an entrypoint
+                            (<code>file.py:symbol</code>). A broken kernel stays isolated.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S6 BENCHMARK PIPELINE -->
+            <section data-transition="slide">
+                <h2>Pipeline</h2>
+                <div class="pipe" style="margin:.6rem 0 .8rem">
+                    <span class="st">📄 Parse Meta</span><span class="ar">→</span>
+                    <span class="st">🎲 Gen Inputs</span><span class="ar">→</span>
+                    <span class="st" style="border-color:rgba(255,61,113,.3)">✅ Correctness Gate</span><span
+                        class="ar">→</span>
+                    <span class="st">⏱ Timing Loop</span><span class="ar">→</span>
+                    <span class="st">📊 Derive Metrics</span><span class="ar">→</span>
+                    <span class="st">💾 Save Results</span>
+                </div>
+                <div class="g3">
+                    <div class="glass" style="margin-top:0">
+                        <h4 style="font-size:.9rem;color:var(--pk)">Why correctness first?</h4>
+                        <p class="s">No point timing a wrong kernel. TriBench checks outputs and gradients against the
+                            PyTorch reference first.</p>
+                    </div>
+                    <div class="glass" style="margin-top:0">
+                        <h4 style="font-size:.9rem;color:var(--c)">What the timing loop does</h4>
+                        <p class="s">Warmup first, then repeated timed runs. Reports min/max/mean
+                            and p50/p95. Backends: <code>do_bench</code>, <code>do_bench_cudagraph</code>, raw
+                            CUDA events.
+                        </p>
+                    </div>
+                    <div class="glass" style="margin-top:0">
+                        <h4 style="font-size:.9rem;color:var(--o)">What gets saved</h4>
+                        <ul class="s" style="padding-left:1rem;margin:.2rem 0 0">
+                            <li>Latency quantiles (p50 / p95)</li>
+                            <li>TFLOPS and GB/s</li>
+                            <li>Environment: torch/triton/CUDA/GPU/driver</li>
+                            <li>Git commit hash + random seed</li>
+                            <li>Full CLI command line</li>
+                        </ul>
+                        <p class="s d" style="margin:.4rem 0 0">→ JSON + Markdown outputs</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S13 CORRECTNESS -->
+            <section data-transition="slide">
+                <h2>Correctness Validation</h2>
+                <div class="g13" style="grid-template-columns:3fr 2fr">
+                    <div class="glass" style="margin-top:0">
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--c)">1</div>
+                            <div class="body">
+                                <h4>PyTorch Reference Baseline</h4>
+                                <p><code>reference.py</code> implements the same op in PyTorch as the ground truth.</p>
+                            </div>
+                        </div>
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--p);margin-bottom:2rem">2</div>
+                            <div class="body">
+                                <h4>Shape &amp; Dtype Sweep</h4>
+                                <p><code>meta.json</code> defines the test matrix. TriBench runs every listed size and
+                                    dtype (<code>fp16</code>, <code>bf16</code>, <code>fp32</code>).</p>
+                            </div>
+                        </div>
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--o)">3</div>
+                            <div class="body">
+                                <h4>Strict Tolerance Checking</h4>
+                                <p>Outputs and gradients are compared to the reference. <code>max_diff</code> must
+                                    stay within the dtype's tolerance.</p>
+                            </div>
+                        </div>
+                        <div class="num-step" style="margin-bottom:0">
+                            <div class="circle" style="background:var(--pk)">4</div>
+                            <div class="body">
+                                <h4>Gate Before Benchmark</h4>
+                                <p>Only passing kernels move to timing. Broken ones never produce
+                                    benchmark numbers.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:.6rem">
+                        <div class="glass" style="margin-top:0">
+                            <p class="s d"
+                                style="margin:0 0 .3rem;text-transform:uppercase;letter-spacing:.05em;font-weight:500">
+                                Example: RMS Norm</p>
+                            <pre style="margin:0"><code class="language-bash" style="padding:.5rem;font-size:.78em">$ tribench test --kernel rms_norm
+
+Testing rms_norm...
+  fp32  (2048, 768)    max_diff=1.2e-6 ✅
+  fp16  (2048, 768)    max_diff=3.1e-4 ✅
+  bf16  (2048, 768)    max_diff=4.7e-4 ✅
+  fp16  (4096, 1024)   max_diff=2.8e-4 ✅
+  fp16  (8192, 4096)   max_diff=3.5e-4 ✅
+
+All 5 cases passed.</code></pre>
+                        </div>
+                        <div class="glass ctr" style="margin-top:0;padding:.5rem .8rem">
+                            <p class="s" style="margin:0">Correctness <strong style="color:var(--c)">first</strong> — so
+                                the numbers are worth
+                                trusting.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S7 TIMER BACKENDS + LATENCY -->
+            <section data-transition="slide">
+                <h2>Timer Backends</h2>
+                <div class="g13" style="grid-template-columns:3fr 2fr">
+                    <div>
+                        <div class="g3" style="margin-top:0">
+                            <div class="card" style="border-top:2px solid var(--c)">
+                                <h4 style="font-size:.88rem"><code>do_bench</code></h4>
+                                <div style="margin:.3rem 0"><span class="tag tc">warmup</span><span
+                                        class="tag tc">rep</span><span class="tag tc">quantiles</span></div>
+                                <p>Default backend. Set warmup and reps; returns summary stats or
+                                    quantiles.</p>
+                            </div>
+                            <div class="card" style="border-top:2px solid var(--p)">
+                                <h4 style="font-size:.88rem"><code>do_bench_cudagraph</code></h4>
+                                <div style="margin:.3rem 0"><span class="tag tp">low noise</span><span
+                                        class="tag tp">short kernels</span></div>
+                                <p>Uses CUDA Graphs to cut Python and launch overhead. Best for very short
+                                    kernels.</p>
+                            </div>
+                            <div class="card" style="border-top:2px solid var(--o)">
+                                <h4 style="font-size:.88rem">CUDA Events</h4>
+                                <div style="margin:.3rem 0"><span class="tag to">low-level</span><span
+                                        class="tag to">manual sync</span></div>
+                                <p>Direct GPU timestamps, manual warmup and sync. Use when you need
+                                    full control.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="glass" style="margin-top:0">
+                            <p class="s d"
+                                style="margin:0 0 .4rem;text-align:center;text-transform:uppercase;letter-spacing:.05em;font-weight:500">
+                                Latency Distribution</p>
+                            <div style="display:flex;align-items:flex-end;gap:2px;height:100px;justify-content:center">
+                                <div
+                                    style="width:7px;height:10%;background:rgba(0,229,255,.15);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:22%;background:rgba(0,229,255,.22);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:40%;background:rgba(0,229,255,.35);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:65%;background:rgba(0,229,255,.5);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:88%;background:rgba(0,229,255,.7);border-radius:3px 3px 0 0">
+                                </div>
+                                <div style="width:7px;height:100%;background:var(--c);border-radius:3px 3px 0 0"></div>
+                                <div
+                                    style="width:7px;height:90%;background:rgba(0,229,255,.65);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:62%;background:rgba(0,229,255,.45);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:35%;background:rgba(0,229,255,.3);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:18%;background:rgba(0,229,255,.18);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:8%;background:rgba(0,229,255,.1);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:14%;background:rgba(255,61,113,.35);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:20%;background:rgba(255,61,113,.5);border-radius:3px 3px 0 0">
+                                </div>
+                                <div
+                                    style="width:7px;height:8%;background:rgba(255,61,113,.3);border-radius:3px 3px 0 0">
+                                </div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-top:.3rem">
+                                <span class="s" style="color:var(--c)">← p50</span>
+                                <span class="s" style="color:var(--pk)">p95 →</span>
+                            </div>
+                            <hr class="dv">
+                            <p class="s" style="margin:0">Mean latency hides jitter and contention spikes.
+                                <strong style="color:var(--c)">p50</strong> = typical case, <strong
+                                    style="color:var(--pk)">p95</strong> = tail.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S8 THROUGHPUT & INTERPRETABILITY -->
+            <section data-transition="slide">
+                <h2>Throughput</h2>
+                <div class="g2">
+                    <div class="card" style="border-left:3px solid var(--p)">
+                        <h4 style="color:var(--p)">📐 TFLOPS — Compute Throughput</h4>
+                        <p>TFLOPS measures how much compute the kernel actually uses — tells you if it's
+                            <strong>compute-bound</strong>.
+                        </p>
+                        <div class="mbar" style="margin-top:.5rem">
+                            <div class="fl" style="width:72%;background:linear-gradient(90deg,var(--p),var(--c))"></div>
+                        </div>
+                        <p class="s d" style="margin:.3rem 0 0">e.g. 85 TFLOPS / 312 peak = 27% utilization</p>
+                        <hr class="dv">
+                    </div>
+                    <div class="card" style="border-left:3px solid var(--o)">
+                        <h4 style="color:var(--o)">📊 GB/s — Memory Bandwidth</h4>
+                        <p>GB/s measures bandwidth usage — matters most for
+                            <strong>memory-bound</strong> ops.
+                        </p>
+                        <div class="mbar" style="margin-top:.5rem">
+                            <div class="fl" style="width:58%;background:linear-gradient(90deg,var(--o),var(--pk))">
+                            </div>
+                        </div>
+                        <p class="s d" style="margin:.3rem 0 0">e.g. 1200 GB/s / 2039 peak = 59% bandwidth</p>
+                        <hr class="dv">
+                    </div>
+                </div>
+                <div class="glass" style="margin-top:0.8rem; padding: 0.5rem; text-align: center;">
+                    <img src="https://www.databricks.com/sites/default/files/inline-images/db-811-blog-img-1.png"
+                        alt="Performance Analysis Model"
+                        style="max-height: 240px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                </div>
+            </section>
+
+
+            <!-- S10 REPRODUCIBILITY -->
+            <section data-transition="slide">
+                <h2>Reproducibility</h2>
+                <div class="g13" style="grid-template-columns:2fr 3fr">
+                    <div class="glass" style="margin-top:0">
+                        <h4 style="font-size:.9rem;color:var(--c)">🔒 Captured Per Run</h4>
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--c)">1</div>
+                            <div class="body">
+                                <h4>Software Stack</h4>
+                                <p><code>torch</code> / <code>triton</code> / <code>CUDA</code> versions</p>
+                            </div>
+                        </div>
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--p)">2</div>
+                            <div class="body">
+                                <h4>Hardware</h4>
+                                <p>GPU name, driver version, memory</p>
+                            </div>
+                        </div>
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--o)">3</div>
+                            <div class="body">
+                                <h4>Code State</h4>
+                                <p>Git commit hash to reproduce the run</p>
+                            </div>
+                        </div>
+                        <div class="num-step">
+                            <div class="circle" style="background:var(--pk)">4</div>
+                            <div class="body">
+                                <h4>Experiment Config</h4>
+                                <p>Random seed + full CLI command</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:.7rem">
+                        <div class="glass" style="margin-top:0">
+                            <h4 style="font-size:.9rem;color:var(--p)">📄 Dual Output Format</h4>
+                            <div class="g2" style="margin-top:.4rem;gap:.6rem">
+                                <div>
+                                    <p class="s" style="color:var(--c);font-weight:600;margin-bottom:.2rem">results.json
+                                    </p>
+                                    <p class="s" style="margin:0">Machine-readable — for analysis, CI, and cross-run
+                                        diffs.</p>
+                                </div>
+                                <div>
+                                    <p class="s" style="color:var(--p);font-weight:600;margin-bottom:.2rem">summary.md
+                                    </p>
+                                    <p class="s" style="margin:0">Markdown table for reports, READMEs, and
+                                        submissions.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass" style="margin-top:0">
+                            <h4 style="font-size:.9rem">Self-Contained Results</h4>
+                            <p class="s" style="margin:0">Each result file includes the full environment snapshot — one
+                                JSON is enough to reproduce the run. Same schema across all 28 kernel
+                                packs.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S16 VISUALIZATION -->
+            <section data-transition="slide">
+                <h2>Visualization</h2>
+                <div class="glass"
+                    style="margin-top:0.8rem; padding: 0.8rem; display: flex; justify-content: center; align-items: center;">
+                    <video controls autoplay loop muted
+                        style="max-width: 100%; max-height: 500px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+                        <source src="../demos/demo.mp4" type="video/mp4">
+                        <source src="https://github.com/H1yori233/TriBench/raw/main/demos/demo.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </section>
+
+            <!-- S11 COMPOSITION -->
+            <section data-transition="slide">
+                <h2>Composition</h2>
+                <div class="g13" style="grid-template-columns:3fr 2fr">
+                    <div>
+                        <div class="glass" style="margin-top:0;margin-bottom:.7rem">
+                            <h4 style="font-size:.9rem;color:var(--c)">What <code>variants</code> means in
+                                <code>meta.json</code>
+                            </h4>
+                            <p class="s">A single kernel pack can hold multiple implementations. TriBench runs all of
+                                them with identical cases, dtypes, layouts, seeds, and timer settings.</p>
+                            <div class="g3" style="margin-top:.5rem;gap:.5rem">
+                                <div
+                                    style="background:rgba(0,229,255,.06);border-radius:8px;padding:.5rem .7rem;text-align:center">
+                                    <p class="s" style="margin:0;color:var(--c);font-weight:600">Main Impl</p>
+                                    <p class="s d" style="margin:0">Optimized Triton</p>
+                                </div>
+                                <div
+                                    style="background:rgba(181,47,243,.06);border-radius:8px;padding:.5rem .7rem;text-align:center">
+                                    <p class="s" style="margin:0;color:var(--p);font-weight:600">Baseline</p>
+                                    <p class="s d" style="margin:0">PyTorch reference</p>
+                                </div>
+                                <div
+                                    style="background:rgba(255,123,0,.06);border-radius:8px;padding:.5rem .7rem;text-align:center">
+                                    <p class="s" style="margin:0;color:var(--o);font-weight:600">Ablation</p>
+                                    <p class="s d" style="margin:0">Alt block sizes, etc.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass" style="margin-top:0">
+                            <h4 style="font-size:.9rem;color:var(--p)">Typical Use</h4>
+                            <p class="s" style="margin:0">Most kernels ship with a reference, an optimized
+                                version, and a few experiments. <code>variants</code> keeps them in one place for easy
+                                comparison.
+                            </p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="card hi" style="margin-bottom:.6rem">
+                            <h4 style="font-size:.9rem;color:var(--c)">⚡ Case: Add+SiLU Fused</h4>
+                            <p>Runs <code>add + silu</code> in one pass.</p>
+                            <ul class="s" style="padding-left:1rem;margin:.3rem 0 0">
+                                <li>1 memory round-trip</li>
+                                <li>1 kernel launch</li>
+                                <li>Minimal memory traffic</li>
+                            </ul>
+                        </div>
+                        <div class="card" style="margin-bottom:.6rem;border-color:rgba(255,61,113,.2)">
+                            <h4 style="font-size:.9rem;color:var(--pk)">🔗 Case: Sequential Baseline</h4>
+                            <p>Runs <code>torch.add</code> then <code>F.silu</code>.</p>
+                            <ul class="s" style="padding-left:1rem;margin:.3rem 0 0">
+                                <li>2 memory round-trips</li>
+                                <li>2 kernel launches</li>
+                                <li>Higher memory traffic</li>
+                            </ul>
+                        </div>
+                        <div class="glass ctr" style="margin-top:0;padding:.5rem .8rem">
+                            <p class="s" style="margin:0">Both live in one <code>meta.json</code> → comparison stays
+                                <span class="gc">consistent</span> and <span class="gc">repeatable</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- S12 CLI WORKFLOW -->
+            <section data-transition="slide">
+                <h2>Developer Workflow</h2>
+                <div style="display:flex; flex-direction:column; gap:1.2rem; margin-top:2rem; align-items:center;">
+
+                    <div class="glass"
+                        style="display:flex; align-items:center; width: 92%; padding: 1.2rem 2rem; border-left: 4px solid var(--c);">
+                        <div class="num-step" style="margin:0; align-items:center; flex: 1;">
+                            <div class="circle" style="background:var(--c); margin-top:0;">1</div>
+                            <div class="body" style="padding-left:0.5rem">
+                                <h4 style="margin:0 0 .15rem 0; font-size:1.15rem;">Validate Schema</h4>
+                                <p style="margin:0; font-size:.95rem; color:var(--t2);">Check that
+                                    <code>meta.json</code> is valid
+                                </p>
+                            </div>
+                        </div>
+                        <div style="flex: 0 0 50%;">
+                            <pre
+                                style="margin:0; width:100%; box-shadow:none; border:1px solid rgba(255,255,255,0.1);"><code class="language-bash" style="font-size:.85em; padding:1rem; border-radius:8px;">tribench validate-meta</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="glass"
+                        style="display:flex; align-items:center; width: 92%; padding: 1.2rem 2rem; border-left: 4px solid var(--p);">
+                        <div class="num-step" style="margin:0; align-items:center; flex: 1;">
+                            <div class="circle" style="background:var(--p); margin-top:0;">2</div>
+                            <div class="body" style="padding-left:0.5rem">
+                                <h4 style="margin:0 0 .15rem 0; font-size:1.15rem;">Test Correctness</h4>
+                                <p style="margin:0; font-size:.95rem; color:var(--t2);">Compare shapes &amp; dtypes to
+                                    the reference</p>
+                            </div>
+                        </div>
+                        <div style="flex: 0 0 50%;">
+                            <pre
+                                style="margin:0; width:100%; box-shadow:none; border:1px solid rgba(255,255,255,0.1);"><code class="language-bash" style="font-size:.85em; padding:1rem; border-radius:8px;">tribench test --kernel all</code></pre>
+                        </div>
+                    </div>
+
+                    <div class="glass"
+                        style="display:flex; align-items:center; width: 92%; padding: 1.2rem 2rem; border-left: 4px solid var(--o);">
+                        <div class="num-step" style="margin:0; align-items:center; flex: 1;">
+                            <div class="circle" style="background:var(--o); margin-top:0;">3</div>
+                            <div class="body" style="padding-left:0.5rem">
+                                <h4 style="margin:0 0 .15rem 0; font-size:1.15rem;">Run Benchmark</h4>
+                                <p style="margin:0; font-size:.95rem; color:var(--t2);">Collect timing, metrics, and
+                                    logs</p>
+                            </div>
+                        </div>
+                        <div style="flex: 0 0 50%;">
+                            <pre
+                                style="margin:0; width:100%; box-shadow:none; border:1px solid rgba(255,255,255,0.1);"><code class="language-bash" style="font-size:.85em; padding:1rem; border-radius:8px;">tribench run --kernel rope --dtype fp16</code></pre>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+
+            <!-- S17 GET STARTED -->
+            <section data-transition="slide">
+                <h2>Get Started</h2>
+                <div class="glass"
+                    style="margin-top:1.5rem; padding: 2.5rem; text-align: center; border-bottom: 3px solid var(--c);">
+                    <p style="font-size:1.4rem; margin-bottom: 2.2rem;">Docs and quickstart guide</p>
+                    <a href="https://h1yori233.github.io/TriBench/getting-started/" target="_blank"
+                        style="color:var(--c); font-size:1.1rem; text-decoration:none; border:2px solid rgba(0,229,255,.2); padding:1rem 2.5rem; border-radius:15px; transition:all 0.3s; background:rgba(0,229,255,0.03); display:inline-block;">
+                        🚀 TriBench Getting Started
+                    </a>
+                </div>
+            </section>
+
+            <!-- S14 REFERENCES -->
+            <section data-transition="slide">
+                <h2>References</h2>
+                <div class="glass" style="margin-top:0.3rem; padding: 1.2rem 1.6rem;">
+                    <ul class="s" style="column-count: 2; column-gap: 2rem; margin: 0; padding-left: 1rem;">
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">Triton</strong><br><a
+                                href="https://github.com/triton-lang/triton" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/triton-lang/triton</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">Liger-Kernel</strong><br><a
+                                href="https://github.com/linkedin/Liger-Kernel" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/linkedin/Liger-Kernel</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">FlagGems</strong><br><a
+                                href="https://github.com/FlagOpen/FlagGems" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/FlagOpen/FlagGems</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">SageAttention</strong><br><a
+                                href="https://github.com/thu-ml/SageAttention" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/thu-ml/SageAttention</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">FlashAttention</strong><br><a
+                                href="https://github.com/Dao-AILab/flash-attention" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/Dao-AILab/flash-attention</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">FlashInfer</strong><br><a
+                                href="https://github.com/flashinfer-ai/flashinfer" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/flashinfer-ai/flashinfer</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">TritonBench</strong><br><a
+                                href="https://github.com/meta-pytorch/tritonbench" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/meta-pytorch/tritonbench</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">KernelBench</strong><br><a
+                                href="https://github.com/ScalingIntelligence/KernelBench" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/ScalingIntelligence/KernelBench</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">MultiKernelBench</strong><br><a
+                                href="https://github.com/wzzll123/MultiKernelBench" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/wzzll123/MultiKernelBench</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">NVBench</strong><br><a
+                                href="https://github.com/NVIDIA/nvbench" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/NVIDIA/nvbench</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">vLLM</strong><br><a
+                                href="https://github.com/vllm-project/vllm" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/vllm-project/vllm</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">SGLang</strong><br><a
+                                href="https://github.com/sgl-project/sglang" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/sgl-project/sglang</a>
+                        </li>
+                        <li style="margin-bottom:0.5rem;"><strong style="color:#fff">CUDA-Agent</strong><br><a
+                                href="https://github.com/BytedTsinghua-SIA/CUDA-Agent" target="_blank"
+                                style="color:var(--c);font-size:0.85em;text-decoration:none;">github.com/BytedTsinghua-SIA/CUDA-Agent</a>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- S15 THANK YOU -->
+            <section data-transition="zoom" style="text-align:center">
+                <img src="https://github.com/H1yori233/TriBench/raw/main/assets/logo.png" alt="Logo"
+                    style="height:80px;filter:grayscale(1) brightness(2);margin-bottom:1.5rem">
+                <h1 style="font-size:3.2em">Thank You</h1>
+                <p style="color:var(--t3);letter-spacing:1px">TriBench Team</p>
+                <div style="margin-top:2rem">
+                    <a href="https://h1yori233.github.io/TriBench/"
+                        style="color:var(--c);text-decoration:none;border:1px solid rgba(0,229,255,.25);padding:.6rem 1.8rem;border-radius:99px;font-size:.95rem;transition:all .3s;display:inline-block">
+                        ← Back to Docs
+                    </a>
+                </div>
+            </section>
+
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/highlight/highlight.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true, transition: 'slide', backgroundTransition: 'none',
+            center: true, margin: 0.06, controls: true, progress: true,
+            slideNumber: true, plugins: [RevealHighlight]
+        });
+    </script>
+</body>
+
+</html>
